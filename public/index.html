@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Find your next career opportunity. Browse curated job listings from top companies.">
+  <meta name="keywords" content="jobs, careers, employment, hiring, job search">
+  <title>JobsHub - Find Your Dream Job</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="/css/main.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <nav class="nav">
+        <a href="/" class="logo">
+          <span class="logo-icon">💼</span>
+          <span class="logo-text">JobsHub</span>
+        </a>
+        
+        <div class="nav-links">
+          <a href="/" class="nav-link active">Jobs</a>
+          <a href="/categories" class="nav-link">Categories</a>
+          <a href="/about" class="nav-link">About</a>
+        </div>
+        
+        <div class="nav-actions">
+          <div class="auth-buttons" id="authButtons">
+            <a href="/login" class="btn btn-ghost">Sign In</a>
+            <a href="/register" class="btn btn-primary">Sign Up</a>
+          </div>
+          <div class="user-menu hidden" id="userMenu">
+            <button class="user-menu-btn" id="userMenuBtn">
+              <i class="fas fa-user-circle"></i>
+              <span id="userName">User</span>
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown">
+              <a href="/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+              <a href="/saved-jobs"><i class="fas fa-bookmark"></i> Saved Jobs</a>
+              <a href="/alerts"><i class="fas fa-bell"></i> Job Alerts</a>
+              <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+              <hr>
+              <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+            </div>
+          </div>
+          <button class="mobile-menu-btn" id="mobileMenuBtn">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu hidden" id="mobileMenu">
+    <a href="/" class="mobile-nav-link">Jobs</a>
+    <a href="/categories" class="mobile-nav-link">Categories</a>
+    <a href="/about" class="mobile-nav-link">About</a>
+    <hr>
+    <div class="mobile-auth" id="mobileAuth">
+      <a href="/login" class="btn btn-ghost btn-block">Sign In</a>
+      <a href="/register" class="btn btn-primary btn-block">Sign Up</a>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main id="app">
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="container">
+        <h1 class="hero-title">Find Your Dream Job</h1>
+        <p class="hero-subtitle">Discover opportunities from top companies. Curated listings updated daily.</p>
+        
+        <!-- Search Box -->
+        <div class="search-box">
+          <div class="search-input-group">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Job title, company, or keywords..." class="search-input">
+          </div>
+          <div class="search-input-group">
+            <i class="fas fa-map-marker-alt"></i>
+            <input type="text" id="locationInput" placeholder="Location" class="search-input">
+          </div>
+          <button class="btn btn-primary btn-search" id="searchBtn">
+            <i class="fas fa-search"></i>
+            <span>Search</span>
+          </button>
+        </div>
+        
+        <!-- Quick Filters -->
+        <div class="quick-filters">
+          <button class="quick-filter active" data-filter="all">All Jobs</button>
+          <button class="quick-filter" data-filter="remote">🌍 Remote</button>
+          <button class="quick-filter" data-filter="hybrid">🏢 Hybrid</button>
+          <button class="quick-filter" data-filter="onsite">📍 On-site</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Featured Jobs -->
+    <section class="section" id="featuredSection">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">
+            <i class="fas fa-star"></i>
+            Featured Jobs
+          </h2>
+        </div>
+        <div class="jobs-grid" id="featuredJobs">
+          <!-- Featured jobs loaded dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Jobs Section -->
+    <section class="section section-gray">
+      <div class="container">
+        <div class="jobs-layout">
+          <!-- Filters Sidebar -->
+          <aside class="filters-sidebar" id="filtersSidebar">
+            <div class="filters-header">
+              <h3>Filters</h3>
+              <button class="btn-text" id="clearFilters">Clear All</button>
+            </div>
+            
+            <!-- Categories Filter -->
+            <div class="filter-group">
+              <h4 class="filter-title">
+                <i class="fas fa-th-large"></i>
+                Categories
+              </h4>
+              <div class="filter-options" id="categoryFilters">
+                <!-- Categories loaded dynamically -->
+              </div>
+            </div>
+            
+            <!-- Job Type Filter -->
+            <div class="filter-group">
+              <h4 class="filter-title">
+                <i class="fas fa-briefcase"></i>
+                Job Type
+              </h4>
+              <div class="filter-options">
+                <label class="filter-checkbox">
+                  <input type="checkbox" name="job_type" value="remote">
+                  <span class="checkmark"></span>
+                  Remote
+                </label>
+                <label class="filter-checkbox">
+                  <input type="checkbox" name="job_type" value="hybrid">
+                  <span class="checkmark"></span>
+                  Hybrid
+                </label>
+                <label class="filter-checkbox">
+                  <input type="checkbox" name="job_type" value="onsite">
+                  <span class="checkmark"></span>
+                  On-site
+                </label>
+              </div>
+            </div>
+            
+            <!-- Date Posted Filter -->
+            <div class="filter-group">
+              <h4 class="filter-title">
+                <i class="fas fa-calendar"></i>
+                Date Posted
+              </h4>
+              <div class="filter-options">
+                <label class="filter-radio">
+                  <input type="radio" name="posted_after" value="">
+                  <span class="radiomark"></span>
+                  Any time
+                </label>
+                <label class="filter-radio">
+                  <input type="radio" name="posted_after" value="today">
+                  <span class="radiomark"></span>
+                  Today
+                </label>
+                <label class="filter-radio">
+                  <input type="radio" name="posted_after" value="3days">
+                  <span class="radiomark"></span>
+                  Last 3 days
+                </label>
+                <label class="filter-radio">
+                  <input type="radio" name="posted_after" value="week">
+                  <span class="radiomark"></span>
+                  Last week
+                </label>
+                <label class="filter-radio">
+                  <input type="radio" name="posted_after" value="month">
+                  <span class="radiomark"></span>
+                  Last month
+                </label>
+              </div>
+            </div>
+            
+            <!-- Salary Range Filter -->
+            <div class="filter-group">
+              <h4 class="filter-title">
+                <i class="fas fa-money-bill-wave"></i>
+                Salary Range
+              </h4>
+              <div class="salary-inputs">
+                <input type="number" id="salaryMin" placeholder="Min" class="salary-input">
+                <span>-</span>
+                <input type="number" id="salaryMax" placeholder="Max" class="salary-input">
+              </div>
+            </div>
+            
+            <button class="btn btn-primary btn-block" id="applyFilters">Apply Filters</button>
+          </aside>
+          
+          <!-- Jobs List -->
+          <div class="jobs-main">
+            <div class="jobs-header">
+              <div class="jobs-count">
+                <span id="jobsCount">0</span> jobs found
+              </div>
+              <div class="jobs-sort">
+                <label>Sort by:</label>
+                <select id="sortSelect" class="sort-select">
+                  <option value="posted_date">Most Recent</option>
+                  <option value="salary">Highest Salary</option>
+                  <option value="views">Most Viewed</option>
+                  <option value="title">Title A-Z</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="jobs-list" id="jobsList">
+              <!-- Jobs loaded dynamically -->
+            </div>
+            
+            <!-- Pagination -->
+            <div class="pagination" id="pagination">
+              <!-- Pagination loaded dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Job Detail Modal -->
+  <div class="modal" id="jobModal">
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-content">
+      <button class="modal-close" id="modalClose">
+        <i class="fas fa-times"></i>
+      </button>
+      <div id="jobDetail">
+        <!-- Job details loaded dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-section">
+          <h3 class="footer-logo">
+            <span class="logo-icon">💼</span>
+            JobsHub
+          </h3>
+          <p>Find your dream job from our curated list of opportunities from top companies.</p>
+        </div>
+        
+        <div class="footer-section">
+          <h4>For Job Seekers</h4>
+          <ul>
+            <li><a href="/">Browse Jobs</a></li>
+            <li><a href="/categories">Categories</a></li>
+            <li><a href="/saved-jobs">Saved Jobs</a></li>
+            <li><a href="/alerts">Job Alerts</a></li>
+          </ul>
+        </div>
+        
+        <div class="footer-section">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="/about">About Us</a></li>
+            <li><a href="/contact">Contact</a></li>
+            <li><a href="/faq">FAQ</a></li>
+            <li><a href="/blog">Blog</a></li>
+          </ul>
+        </div>
+        
+        <div class="footer-section">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="/privacy">Privacy Policy</a></li>
+            <li><a href="/terms">Terms of Service</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>&copy; 2026 JobsHub. All rights reserved.</p>
+        <div class="social-links">
+          <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+          <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+          <a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="/js/main.js"></script>
+</body>
+</html>

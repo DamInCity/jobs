@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - JobsHub</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin-body">
+  <!-- Sidebar -->
+  <aside class="admin-sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="/admin" class="sidebar-logo">
+        <span class="logo-icon">💼</span>
+        <span class="logo-text">JobsHub</span>
+      </a>
+      <span class="badge">Admin</span>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a href="/admin" class="sidebar-link active" data-page="dashboard">
+        <i class="fas fa-tachometer-alt"></i>
+        <span>Dashboard</span>
+      </a>
+      <a href="/admin/jobs" class="sidebar-link" data-page="jobs">
+        <i class="fas fa-briefcase"></i>
+        <span>Jobs</span>
+      </a>
+      <a href="/admin/categories" class="sidebar-link" data-page="categories">
+        <i class="fas fa-folder"></i>
+        <span>Categories</span>
+      </a>
+      <a href="/admin/users" class="sidebar-link" data-page="users">
+        <i class="fas fa-users"></i>
+        <span>Users</span>
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <a href="/" class="sidebar-link" target="_blank">
+        <i class="fas fa-external-link-alt"></i>
+        <span>View Site</span>
+      </a>
+      <button class="sidebar-link" id="logoutBtn">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="admin-main">
+    <!-- Header -->
+    <header class="admin-header">
+      <button class="mobile-menu-toggle" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+      </button>
+      
+      <div class="header-title">
+        <h1 id="pageTitle">Dashboard</h1>
+      </div>
+      
+      <div class="header-actions">
+        <div class="admin-user">
+          <i class="fas fa-user-circle"></i>
+          <span id="adminName">Admin</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Area -->
+    <div class="admin-content" id="adminContent">
+      <!-- Dashboard View (default) -->
+      <div class="dashboard-view" id="dashboardView">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon" style="background-color: #DBEAFE;">
+              <i class="fas fa-briefcase" style="color: #3B82F6;"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="totalJobs">0</span>
+              <span class="stat-label">Total Jobs</span>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon" style="background-color: #D1FAE5;">
+              <i class="fas fa-check-circle" style="color: #10B981;"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="activeJobs">0</span>
+              <span class="stat-label">Active Jobs</span>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon" style="background-color: #FEF3C7;">
+              <i class="fas fa-star" style="color: #F59E0B;"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="featuredJobs">0</span>
+              <span class="stat-label">Featured Jobs</span>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon" style="background-color: #EDE9FE;">
+              <i class="fas fa-users" style="color: #8B5CF6;"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="totalUsers">0</span>
+              <span class="stat-label">Total Users</span>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon" style="background-color: #FCE7F3;">
+              <i class="fas fa-eye" style="color: #EC4899;"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="totalViews">0</span>
+              <span class="stat-label">Total Views</span>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon" style="background-color: #CFFAFE;">
+              <i class="fas fa-mouse-pointer" style="color: #06B6D4;"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="totalClicks">0</span>
+              <span class="stat-label">Total Clicks</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts/Tables Row -->
+        <div class="dashboard-grid">
+          <!-- Recent Jobs -->
+          <div class="dashboard-card">
+            <div class="card-header">
+              <h3><i class="fas fa-clock"></i> Recent Jobs</h3>
+              <a href="/admin/jobs" class="btn btn-ghost btn-sm">View All</a>
+            </div>
+            <div class="card-body">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Company</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody id="recentJobsTable">
+                  <tr><td colspan="4" class="loading-cell">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Top Viewed -->
+          <div class="dashboard-card">
+            <div class="card-header">
+              <h3><i class="fas fa-chart-line"></i> Top Viewed Jobs</h3>
+            </div>
+            <div class="card-body">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Company</th>
+                    <th>Views</th>
+                  </tr>
+                </thead>
+                <tbody id="topViewedTable">
+                  <tr><td colspan="3" class="loading-cell">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Categories -->
+          <div class="dashboard-card">
+            <div class="card-header">
+              <h3><i class="fas fa-folder"></i> Categories</h3>
+              <a href="/admin/categories" class="btn btn-ghost btn-sm">Manage</a>
+            </div>
+            <div class="card-body">
+              <div class="category-list" id="categoryStats">
+                <div class="loading-cell">Loading...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jobs View -->
+      <div class="jobs-view hidden" id="jobsView">
+        <div class="view-header">
+          <div class="view-actions">
+            <button class="btn btn-primary" id="addJobBtn">
+              <i class="fas fa-plus"></i> Add Job
+            </button>
+          </div>
+          <div class="view-filters">
+            <input type="text" class="form-input" placeholder="Search jobs..." id="jobSearch">
+            <select class="form-select" id="statusFilter">
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="expired">Expired</option>
+              <option value="draft">Draft</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bulk-actions hidden" id="bulkActions">
+          <span id="selectedCount">0 selected</span>
+          <button class="btn btn-ghost btn-sm" onclick="bulkAction('activate')">Activate</button>
+          <button class="btn btn-ghost btn-sm" onclick="bulkAction('deactivate')">Deactivate</button>
+          <button class="btn btn-ghost btn-sm" onclick="bulkAction('feature')">Feature</button>
+          <button class="btn btn-ghost btn-sm" onclick="bulkAction('delete')" style="color: var(--error);">Delete</button>
+        </div>
+
+        <div class="data-table-container">
+          <table class="data-table" id="jobsTable">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th>Job</th>
+                <th>Category</th>
+                <th>Location</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Views</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobsTableBody">
+              <tr><td colspan="8" class="loading-cell">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-pagination" id="jobsPagination"></div>
+      </div>
+
+      <!-- Categories View -->
+      <div class="categories-view hidden" id="categoriesView">
+        <div class="view-header">
+          <div class="view-actions">
+            <button class="btn btn-primary" id="addCategoryBtn">
+              <i class="fas fa-plus"></i> Add Category
+            </button>
+          </div>
+        </div>
+
+        <div class="categories-grid" id="categoriesGrid">
+          <div class="loading-cell">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Users View -->
+      <div class="users-view hidden" id="usersView">
+        <div class="data-table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Saved Jobs</th>
+                <th>Alerts</th>
+                <th>Joined</th>
+                <th>Last Login</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="6" class="loading-cell">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Job Form Modal -->
+  <div class="modal" id="jobModal">
+    <div class="modal-overlay" onclick="closeJobModal()"></div>
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h2 id="jobModalTitle">Add New Job</h2>
+        <button class="modal-close" onclick="closeJobModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="jobForm" class="modal-body">
+        <input type="hidden" id="jobId">
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Job Title *</label>
+            <input type="text" class="form-input" id="jobTitle" required placeholder="e.g., Senior Software Developer">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Company Name *</label>
+            <input type="text" class="form-input" id="companyName" required placeholder="e.g., TechCorp">
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Company Logo URL</label>
+            <input type="url" class="form-input" id="companyLogo" placeholder="https://example.com/logo.png">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Company Website</label>
+            <input type="url" class="form-input" id="companyWebsite" placeholder="https://example.com">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Job Description *</label>
+          <textarea class="form-textarea" id="jobDescription" rows="6" required placeholder="Describe the role, responsibilities, and what makes this opportunity exciting..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Requirements</label>
+          <textarea class="form-textarea" id="jobRequirements" rows="4" placeholder="List the skills, experience, and qualifications needed..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Benefits</label>
+          <textarea class="form-textarea" id="jobBenefits" rows="3" placeholder="Describe the perks and benefits..."></textarea>
+        </div>
+
+        <div class="form-grid form-grid-3">
+          <div class="form-group">
+            <label class="form-label">Location *</label>
+            <input type="text" class="form-input" id="jobLocation" required placeholder="e.g., Nairobi, Kenya">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Job Type *</label>
+            <select class="form-select" id="jobType" required>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="onsite">On-site</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-select" id="jobCategory">
+              <option value="">Select Category</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid form-grid-4">
+          <div class="form-group">
+            <label class="form-label">Min Salary</label>
+            <input type="number" class="form-input" id="salaryMin" placeholder="50000">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Max Salary</label>
+            <input type="number" class="form-input" id="salaryMax" placeholder="80000">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Currency</label>
+            <select class="form-select" id="salaryCurrency">
+              <option value="KES">KES</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Period</label>
+            <select class="form-select" id="salaryPeriod">
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="hourly">Hourly</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">External Application URL *</label>
+            <input type="url" class="form-input" id="externalLink" required placeholder="https://company.com/careers/apply">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Expiry Date</label>
+            <input type="date" class="form-input" id="expiryDate">
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select class="form-select" id="jobStatus">
+              <option value="active">Active</option>
+              <option value="draft">Draft</option>
+              <option value="expired">Expired</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-checkbox-label">
+              <input type="checkbox" id="isFeatured">
+              <span class="checkmark"></span>
+              Featured Job (highlighted placement)
+            </label>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeJobModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Job</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Category Form Modal -->
+  <div class="modal" id="categoryModal">
+    <div class="modal-overlay" onclick="closeCategoryModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="categoryModalTitle">Add Category</h2>
+        <button class="modal-close" onclick="closeCategoryModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="categoryForm" class="modal-body">
+        <input type="hidden" id="categoryId">
+        
+        <div class="form-group">
+          <label class="form-label">Category Name *</label>
+          <input type="text" class="form-input" id="categoryName" required placeholder="e.g., Software Development">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Icon (Font Awesome class)</label>
+          <input type="text" class="form-input" id="categoryIcon" placeholder="e.g., code">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-textarea" id="categoryDescription" rows="3" placeholder="Brief description of this category..."></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeCategoryModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Category</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Login Modal (shown if not authenticated) -->
+  <div class="modal" id="loginModal">
+    <div class="modal-content modal-sm">
+      <div class="login-header">
+        <span class="logo-icon" style="font-size: 3rem;">💼</span>
+        <h2>Admin Login</h2>
+        <p>Sign in to manage your jobs</p>
+      </div>
+      <form id="loginForm" class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" id="loginEmail" required placeholder="admin@example.com">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" id="loginPassword" required placeholder="••••••••">
+        </div>
+
+        <div class="alert alert-error hidden" id="loginError"></div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/admin.js"></script>
+</body>
+</html>
