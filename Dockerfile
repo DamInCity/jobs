@@ -10,6 +10,9 @@ RUN npm ci --only=production
 # Copy source code
 COPY . .
 
+# CV uploads dir (writable by app user)
+RUN mkdir -p uploads/cvs && chown -R 1001:1001 uploads
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nodejs -u 1001

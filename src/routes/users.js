@@ -1,11 +1,46 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 const db = require('../db');
+const config = require('../config');
 const { authenticate, generateToken } = require('../middleware/auth');
 const { asyncHandler, AppError } = require('../middleware/errorHandler');
 const { userValidation } = require('../middleware/validation');
 
 const router = express.Router();
+
+// Ensure CV upload directory exists
+const cvDir = config.uploads.cvDir;
+fs.mkdirSync(cvDir, { recursive: true });
+
+const cvStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, cvDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.pdf';
+    cb(null, `${req.user.id}-${Date.now()}${ext}`);
+  },
+});
+
+const cvUpload = multer({
+  storage: cvStorage,
+  limits: { fileSize: config.uploads.maxCvBytes },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(file.mimetype) || ['.pdf', '.doc', '.docx'].includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new AppError('Only PDF or Word documents are allowed', 400));
+    }
+  },
+});
 
 // ============================================
 // AUTHENTICATION
@@ -96,19 +131,48 @@ router.post('/login', userValidation.login, asyncHandler(async (req, res) => {
 router.get('/profile', authenticate, asyncHandler(async (req, res) => {
   const result = await db.query(`
     SELECT id, email, name, avatar_url, preferred_locations, preferred_job_types, 
-           preferred_categories, email_verified, created_at
+           preferred_categories, email_verified, created_at,
+           telegram_chat_id, whatsapp_number, notify_channels,
+           cv_original_name, cv_uploaded_at,
+           (cv_path IS NOT NULL) AS has_cv,
+           (telegram_chat_id IS NOT NULL) AS telegram_linked
     FROM users WHERE id = $1
   `, [req.user.id]);
 
+  const row = result.rows[0];
   res.json({
     success: true,
-    data: result.rows[0],
+    data: {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      avatar_url: row.avatar_url,
+      preferred_locations: row.preferred_locations,
+      preferred_job_types: row.preferred_job_types,
+      preferred_categories: row.preferred_categories,
+      email_verified: row.email_verified,
+      created_at: row.created_at,
+      whatsapp_number: row.whatsapp_number,
+      notify_channels: row.notify_channels || ['email'],
+      cv_original_name: row.cv_original_name,
+      cv_uploaded_at: row.cv_uploaded_at,
+      has_cv: !!row.has_cv,
+      telegram_linked: !!row.telegram_linked,
+    },
   });
 }));
 
 // Update profile
 router.put('/profile', authenticate, userValidation.updateProfile, asyncHandler(async (req, res) => {
-  const { name, avatar_url, preferred_locations, preferred_job_types, preferred_categories } = req.body;
+  const {
+    name,
+    avatar_url,
+    preferred_locations,
+    preferred_job_types,
+    preferred_categories,
+    notify_channels,
+    whatsapp_number,
+  } = req.body;
 
   const updates = [];
   const params = [];
@@ -134,6 +198,24 @@ router.put('/profile', authenticate, userValidation.updateProfile, asyncHandler(
     updates.push(`preferred_categories = $${paramIndex++}`);
     params.push(preferred_categories);
   }
+  if (notify_channels !== undefined) {
+    if (!Array.isArray(notify_channels) || notify_channels.length === 0) {
+      throw new AppError('notify_channels must be a non-empty array', 400);
+    }
+    const allowed = new Set(['email', 'telegram', 'whatsapp']);
+    const cleaned = notify_channels
+      .map((c) => String(c).toLowerCase())
+      .filter((c) => allowed.has(c));
+    if (cleaned.length === 0) {
+      throw new AppError('At least one valid channel is required (email, telegram, whatsapp)', 400);
+    }
+    updates.push(`notify_channels = $${paramIndex++}`);
+    params.push(cleaned);
+  }
+  if (whatsapp_number !== undefined) {
+    updates.push(`whatsapp_number = $${paramIndex++}`);
+    params.push(whatsapp_number || null);
+  }
 
   if (updates.length === 0) {
     throw new AppError('No valid fields to update', 400);
@@ -144,7 +226,11 @@ router.put('/profile', authenticate, userValidation.updateProfile, asyncHandler(
   const result = await db.query(`
     UPDATE users SET ${updates.join(', ')} 
     WHERE id = $${paramIndex}
-    RETURNING id, email, name, avatar_url, preferred_locations, preferred_job_types, preferred_categories
+    RETURNING id, email, name, avatar_url, preferred_locations, preferred_job_types,
+              preferred_categories, notify_channels, whatsapp_number,
+              cv_original_name, cv_uploaded_at,
+              (cv_path IS NOT NULL) AS has_cv,
+              (telegram_chat_id IS NOT NULL) AS telegram_linked
   `, params);
 
   res.json({
@@ -281,6 +367,159 @@ router.get('/saved-jobs/:jobId/check', authenticate, asyncHandler(async (req, re
 }));
 
 // ============================================
+// TELEGRAM LINKING
+// ============================================
+
+// Create a short-lived link token + deep link URL
+router.post('/telegram/link-token', authenticate, asyncHandler(async (req, res) => {
+  if (!config.telegram.botToken || !config.telegram.botUsername) {
+    throw new AppError(
+      'Telegram bot is not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_USERNAME.',
+      503
+    );
+  }
+
+  const token = crypto.randomBytes(16).toString('hex');
+  const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  await db.query(
+    `
+    UPDATE users
+    SET telegram_link_token = $1, telegram_link_expires = $2
+    WHERE id = $3
+    `,
+    [token, expires, req.user.id]
+  );
+
+  const username = config.telegram.botUsername.replace(/^@/, '');
+  const deepLink = `https://t.me/${username}?start=${token}`;
+
+  res.json({
+    success: true,
+    data: {
+      token,
+      deep_link: deepLink,
+      expires_at: expires.toISOString(),
+      bot_username: username,
+    },
+  });
+}));
+
+// Unlink Telegram
+router.delete('/telegram/link', authenticate, asyncHandler(async (req, res) => {
+  await db.query(
+    `
+    UPDATE users
+    SET telegram_chat_id = NULL,
+        telegram_link_token = NULL,
+        telegram_link_expires = NULL,
+        notify_channels = array_remove(COALESCE(notify_channels, ARRAY['email']::TEXT[]), 'telegram')
+    WHERE id = $1
+    `,
+    [req.user.id]
+  );
+
+  res.json({
+    success: true,
+    message: 'Telegram unlinked',
+  });
+}));
+
+// ============================================
+// CV UPLOAD
+// ============================================
+
+router.get('/cv', authenticate, asyncHandler(async (req, res) => {
+  const result = await db.query(
+    `
+    SELECT cv_original_name, cv_uploaded_at, (cv_path IS NOT NULL) AS has_cv
+    FROM users WHERE id = $1
+    `,
+    [req.user.id]
+  );
+
+  res.json({
+    success: true,
+    data: result.rows[0],
+  });
+}));
+
+router.post(
+  '/cv',
+  authenticate,
+  (req, res, next) => {
+    cvUpload.single('cv')(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return next(new AppError('CV must be 5MB or smaller', 400));
+        }
+        return next(new AppError(err.message, 400));
+      }
+      if (err) return next(err);
+      next();
+    });
+  },
+  asyncHandler(async (req, res) => {
+    if (!req.file) {
+      throw new AppError('CV file is required (field name: cv)', 400);
+    }
+
+    // Remove previous file if present
+    const prev = await db.query('SELECT cv_path FROM users WHERE id = $1', [req.user.id]);
+    const oldPath = prev.rows[0]?.cv_path;
+    if (oldPath && fs.existsSync(oldPath)) {
+      try {
+        fs.unlinkSync(oldPath);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const result = await db.query(
+      `
+      UPDATE users
+      SET cv_path = $1, cv_original_name = $2, cv_uploaded_at = NOW()
+      WHERE id = $3
+      RETURNING cv_original_name, cv_uploaded_at, (cv_path IS NOT NULL) AS has_cv
+      `,
+      [req.file.path, req.file.originalname, req.user.id]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'CV uploaded successfully',
+      data: result.rows[0],
+    });
+  })
+);
+
+router.delete('/cv', authenticate, asyncHandler(async (req, res) => {
+  const prev = await db.query('SELECT cv_path FROM users WHERE id = $1', [req.user.id]);
+  const oldPath = prev.rows[0]?.cv_path;
+  if (oldPath && fs.existsSync(oldPath)) {
+    try {
+      fs.unlinkSync(oldPath);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  await db.query(
+    `
+    UPDATE users
+    SET cv_path = NULL, cv_original_name = NULL, cv_uploaded_at = NULL
+    WHERE id = $1
+    `,
+    [req.user.id]
+  );
+
+  res.json({
+    success: true,
+    message: 'CV removed',
+  });
+}));
+
+// ============================================
 // JOB ALERTS
 // ============================================
 
@@ -307,11 +546,55 @@ router.post('/alerts', authenticate, asyncHandler(async (req, res) => {
     throw new AppError('Search criteria is required', 400);
   }
 
+  const allowedFreq = ['daily', 'weekly'];
+  if (!allowedFreq.includes(frequency)) {
+    throw new AppError('Frequency must be daily or weekly', 400);
+  }
+
+  // Strip empty criteria keys
+  const cleaned = {};
+  for (const [key, value] of Object.entries(search_criteria)) {
+    if (value !== undefined && value !== null && value !== '') {
+      cleaned[key] = value;
+    }
+  }
+  if (Object.keys(cleaned).length === 0) {
+    throw new AppError('At least one search criterion is required', 400);
+  }
+
   const result = await db.query(`
     INSERT INTO job_alerts (user_id, name, search_criteria, frequency)
     VALUES ($1, $2, $3, $4)
     RETURNING *
-  `, [req.user.id, name, JSON.stringify(search_criteria), frequency]);
+  `, [req.user.id, name || null, JSON.stringify(cleaned), frequency]);
+
+  // Best-effort: sync profile preferences from alert
+  try {
+    const prefUpdates = [];
+    const prefParams = [];
+    let i = 1;
+    if (cleaned.category) {
+      prefUpdates.push(`preferred_categories = ARRAY[$${i++}::uuid]`);
+      prefParams.push(cleaned.category);
+    }
+    if (cleaned.location) {
+      prefUpdates.push(`preferred_locations = ARRAY[$${i++}]`);
+      prefParams.push(cleaned.location);
+    }
+    if (cleaned.job_type) {
+      prefUpdates.push(`preferred_job_types = ARRAY[$${i++}::job_type]`);
+      prefParams.push(cleaned.job_type);
+    }
+    if (prefUpdates.length) {
+      prefParams.push(req.user.id);
+      await db.query(
+        `UPDATE users SET ${prefUpdates.join(', ')} WHERE id = $${i}`,
+        prefParams
+      );
+    }
+  } catch (err) {
+    console.warn('Could not sync profile prefs from alert:', err.message);
+  }
 
   res.status(201).json({
     success: true,

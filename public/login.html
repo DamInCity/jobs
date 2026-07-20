@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign in to JobsHub to save jobs and manage your job alerts.">
+  <title>Sign In - JobsHub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>">
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <nav class="nav">
+        <a href="/" class="logo">
+          <span class="logo-icon">💼</span>
+          <span class="logo-text">JobsHub</span>
+        </a>
+        <div class="nav-links">
+          <a href="/" class="nav-link">Jobs</a>
+          <a href="/categories" class="nav-link">Categories</a>
+          <a href="/about" class="nav-link">About</a>
+        </div>
+        <div class="nav-actions">
+          <div class="auth-buttons" id="authButtons">
+            <a href="/login" class="btn btn-ghost active-nav">Sign In</a>
+            <a href="/register" class="btn btn-primary">Sign Up</a>
+          </div>
+          <div class="user-menu hidden" id="userMenu">
+            <button class="user-menu-btn" id="userMenuBtn" type="button">
+              <i class="fas fa-user-circle"></i>
+              <span id="userName">User</span>
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown">
+              <a href="/"><i class="fas fa-briefcase"></i> Browse Jobs</a>
+              <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+            </div>
+          </div>
+          <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Menu">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <div class="mobile-menu hidden" id="mobileMenu">
+    <a href="/" class="mobile-nav-link">Jobs</a>
+    <a href="/categories" class="mobile-nav-link">Categories</a>
+    <a href="/about" class="mobile-nav-link">About</a>
+    <hr>
+    <div class="mobile-auth" id="mobileAuth">
+      <a href="/login" class="btn btn-ghost btn-block">Sign In</a>
+      <a href="/register" class="btn btn-primary btn-block">Sign Up</a>
+    </div>
+  </div>
+
+  <main class="page-main auth-page">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h1>Welcome back</h1>
+        <p>Sign in to save jobs and manage your alerts.</p>
+      </div>
+
+      <div class="alert alert-error hidden" id="authError" role="alert"></div>
+
+      <form id="loginForm" class="auth-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <div class="input-with-icon">
+            <i class="fas fa-envelope"></i>
+            <input class="form-input" type="email" id="email" name="email" required autocomplete="email" placeholder="you@example.com">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-with-icon">
+            <i class="fas fa-lock"></i>
+            <input class="form-input" type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••" minlength="1">
+            <button type="button" class="input-icon-btn" data-toggle-password aria-label="Show password">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg">
+          <i class="fas fa-sign-in-alt"></i> Sign In
+        </button>
+      </form>
+
+      <p class="auth-footer-text">
+        Don't have an account?
+        <a href="/register">Create one</a>
+      </p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+        <p>&copy; 2026 JobsHub. All rights reserved.</p>
+        <div class="social-links">
+          <a href="/about">About</a>
+          <a href="/">Jobs</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/auth.js"></script>
+</body>
+</html>

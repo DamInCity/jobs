@@ -26,13 +26,28 @@ module.exports = {
     {
       name: 'jobs-alerts',
       script: 'src/jobs/emailAlerts.js',
+      args: '--force --frequency=all',
       instances: 1,
-      autorestart: true,
+      autorestart: false,
       watch: false,
-      cron_restart: '0 8 * * *', // Restart daily at 8 AM
+      cron_restart: '0 8 * * *', // Daily at 8 AM
       env_production: {
         NODE_ENV: 'production',
       },
+    },
+    {
+      name: 'jobs-telegram-bot',
+      script: 'src/jobs/telegramBot.js',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '256M',
+      env_production: {
+        NODE_ENV: 'production',
+      },
+      error_file: 'logs/telegram-error.log',
+      out_file: 'logs/telegram-output.log',
+      time: true,
     },
     {
       name: 'jobs-scraper',

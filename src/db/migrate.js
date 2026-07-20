@@ -86,6 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_posted_date ON jobs(posted_date DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_is_featured ON jobs(is_featured);
 CREATE INDEX IF NOT EXISTS idx_jobs_slug ON jobs(slug);
 CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_external_link ON jobs(external_link);
 
 -- Full-text search index for jobs
 CREATE INDEX IF NOT EXISTS idx_jobs_search ON jobs USING gin(
@@ -107,6 +108,14 @@ CREATE TABLE IF NOT EXISTS users (
   preferred_locations TEXT[], -- Array of preferred locations
   preferred_job_types job_type[],
   preferred_categories UUID[],
+  telegram_chat_id VARCHAR(64),
+  whatsapp_number VARCHAR(32),
+  notify_channels TEXT[] DEFAULT ARRAY['email']::TEXT[],
+  cv_path TEXT,
+  cv_original_name VARCHAR(255),
+  cv_uploaded_at TIMESTAMP WITH TIME ZONE,
+  telegram_link_token VARCHAR(64),
+  telegram_link_expires TIMESTAMP WITH TIME ZONE,
   last_login TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -225,14 +234,36 @@ DROP TRIGGER IF EXISTS update_category_count ON jobs;
 CREATE TRIGGER update_category_count
   AFTER INSERT OR UPDATE OR DELETE ON jobs
   FOR EACH ROW EXECUTE FUNCTION update_category_job_count();
+
+-- Additive columns for existing databases (idempotent)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR(64);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(32);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_channels TEXT[] DEFAULT ARRAY['email']::TEXT[];
+ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_path TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_original_name VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_uploaded_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_link_token VARCHAR(64);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_link_expires TIMESTAMP WITH TIME ZONE;
+
+CREATE INDEX IF NOT EXISTS idx_users_telegram_chat ON users(telegram_chat_id) WHERE telegram_chat_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_telegram_link_token ON users(telegram_link_token) WHERE telegram_link_token IS NOT NULL;
 `;
 
-async function runMigrations() {
+/**
+ * Run migrations without ending the shared pool (safe for app startup).
+ */
+async function runMigrationsInProcess() {
   console.log('🚀 Running database migrations...');
-  
+  await db.query(migrations);
+  console.log('✅ Migrations completed successfully');
+}
+
+/**
+ * CLI entry: run migrations then close the pool.
+ */
+async function runMigrations() {
   try {
-    await db.query(migrations);
-    console.log('✅ Migrations completed successfully');
+    await runMigrationsInProcess();
   } catch (error) {
     console.error('❌ Migration failed:', error);
     process.exit(1);
@@ -246,4 +277,4 @@ if (require.main === module) {
   runMigrations();
 }
 
-module.exports = { runMigrations };
+module.exports = { runMigrations, runMigrationsInProcess, migrations };

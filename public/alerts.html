@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Manage personalized job alerts on JobsHub. Get matches by email or Telegram.">
+  <title>Job Alerts - JobsHub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>">
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <nav class="nav">
+        <a href="/" class="logo">
+          <span class="logo-icon">💼</span>
+          <span class="logo-text">JobsHub</span>
+        </a>
+        <div class="nav-links">
+          <a href="/" class="nav-link">Jobs</a>
+          <a href="/categories" class="nav-link">Categories</a>
+          <a href="/alerts" class="nav-link active">Alerts</a>
+          <a href="/about" class="nav-link">About</a>
+        </div>
+        <div class="nav-actions">
+          <div class="auth-buttons" id="authButtons">
+            <a href="/login?redirect=/alerts" class="btn btn-ghost">Sign In</a>
+            <a href="/register?redirect=/alerts" class="btn btn-primary">Sign Up</a>
+          </div>
+          <div class="user-menu hidden" id="userMenu">
+            <button class="user-menu-btn" id="userMenuBtn" type="button">
+              <i class="fas fa-user-circle"></i>
+              <span id="userName">User</span>
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown">
+              <a href="/"><i class="fas fa-briefcase"></i> Browse Jobs</a>
+              <a href="/alerts"><i class="fas fa-bell"></i> Job Alerts</a>
+              <hr>
+              <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+            </div>
+          </div>
+          <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Menu">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <div class="mobile-menu hidden" id="mobileMenu">
+    <a href="/" class="mobile-nav-link">Jobs</a>
+    <a href="/categories" class="mobile-nav-link">Categories</a>
+    <a href="/alerts" class="mobile-nav-link">Alerts</a>
+    <a href="/about" class="mobile-nav-link">About</a>
+    <hr>
+    <div class="mobile-auth" id="mobileAuth">
+      <a href="/login?redirect=/alerts" class="btn btn-ghost btn-block">Sign In</a>
+      <a href="/register?redirect=/alerts" class="btn btn-primary btn-block">Sign Up</a>
+    </div>
+  </div>
+
+  <main class="page-main">
+    <section class="page-hero">
+      <div class="container">
+        <h1 class="page-title"><i class="fas fa-bell"></i> Job Alerts</h1>
+        <p class="page-subtitle">
+          Subscribe by category, location, and job type. Get matches by email and Telegram.
+        </p>
+      </div>
+    </section>
+
+    <section class="container alerts-page" id="alertsPage">
+      <div class="loading-state" id="alertsLoading">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading your alerts…</p>
+      </div>
+
+      <div id="alertsGuest" class="hidden">
+        <div class="alerts-empty-card">
+          <i class="fas fa-lock"></i>
+          <h2>Sign in to manage alerts</h2>
+          <p>Create free alerts for the roles you care about and get them on email or Telegram.</p>
+          <div class="alerts-empty-actions">
+            <a href="/login?redirect=/alerts" class="btn btn-primary">Sign In</a>
+            <a href="/register?redirect=/alerts" class="btn btn-ghost">Create account</a>
+          </div>
+        </div>
+      </div>
+
+      <div id="alertsApp" class="hidden">
+        <div class="alerts-grid">
+          <!-- Create alert -->
+          <div class="alerts-panel">
+            <h2 class="alerts-panel-title"><i class="fas fa-plus-circle"></i> New alert</h2>
+            <form id="createAlertForm" class="alerts-form" novalidate>
+              <div class="form-group">
+                <label class="form-label" for="alertName">Name (optional)</label>
+                <input class="form-input" type="text" id="alertName" placeholder="e.g. Remote software jobs">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="alertCategory">Category</label>
+                <select class="form-input" id="alertCategory">
+                  <option value="">Any category</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="alertLocation">Location</label>
+                <input class="form-input" type="text" id="alertLocation" placeholder="e.g. Nairobi, Kenya">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="alertJobType">Job type</label>
+                <select class="form-input" id="alertJobType">
+                  <option value="">Any type</option>
+                  <option value="remote">Remote</option>
+                  <option value="hybrid">Hybrid</option>
+                  <option value="onsite">On-site</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="alertKeywords">Keywords (optional)</label>
+                <input class="form-input" type="text" id="alertKeywords" placeholder="e.g. React, social work">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="alertFrequency">Frequency</label>
+                <select class="form-input" id="alertFrequency">
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-bell"></i> Create alert
+              </button>
+            </form>
+          </div>
+
+          <!-- List + channels + CV -->
+          <div class="alerts-stack">
+            <div class="alerts-panel">
+              <h2 class="alerts-panel-title"><i class="fas fa-list"></i> Your alerts</h2>
+              <div id="alertsList" class="alerts-list">
+                <p class="text-muted">No alerts yet. Create one on the left.</p>
+              </div>
+            </div>
+
+            <div class="alerts-panel">
+              <h2 class="alerts-panel-title"><i class="fab fa-telegram"></i> Notification channels</h2>
+              <div class="channel-row">
+                <div>
+                  <strong>Email</strong>
+                  <p class="text-muted" id="channelEmailHint">Alerts go to your account email.</p>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="channelEmail" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="channel-row">
+                <div>
+                  <strong>Telegram</strong>
+                  <p class="text-muted" id="telegramStatus">Not linked</p>
+                </div>
+                <div class="channel-actions">
+                  <label class="switch" title="Enable Telegram when linked">
+                    <input type="checkbox" id="channelTelegram" disabled>
+                    <span class="slider"></span>
+                  </label>
+                  <button type="button" class="btn btn-sm btn-primary" id="linkTelegramBtn">
+                    Link Telegram
+                  </button>
+                  <button type="button" class="btn btn-sm btn-ghost hidden" id="unlinkTelegramBtn">
+                    Unlink
+                  </button>
+                </div>
+              </div>
+              <p class="form-hint" id="telegramHint">
+                Opens Telegram with a one-time link. Requires the JobsHub bot to be running.
+              </p>
+            </div>
+
+            <div class="alerts-panel">
+              <h2 class="alerts-panel-title"><i class="fas fa-file-alt"></i> Your CV</h2>
+              <p class="text-muted" id="cvStatus">No CV uploaded yet.</p>
+              <form id="cvForm" class="cv-form">
+                <input type="file" id="cvFile" accept=".pdf,.doc,.docx,application/pdf" hidden>
+                <div class="cv-actions">
+                  <button type="button" class="btn btn-primary btn-sm" id="cvPickBtn">
+                    <i class="fas fa-upload"></i> Upload CV
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-sm hidden" id="cvRemoveBtn">
+                    <i class="fas fa-trash"></i> Remove
+                  </button>
+                </div>
+                <p class="form-hint">PDF or Word, max 5MB. Used for your profile (matching stays preference-based for now).</p>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+        <p>&copy; 2026 JobsHub. All rights reserved.</p>
+        <div class="social-links">
+          <a href="/about">About</a>
+          <a href="/">Jobs</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/alerts-page.js"></script>
+</body>
+</html>

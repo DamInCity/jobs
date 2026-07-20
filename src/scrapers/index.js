@@ -6,30 +6,42 @@
 const BaseScraper = require('./BaseScraper');
 const BrighterMondayScraper = require('./BrighterMondayScraper');
 const MyJobMagScraper = require('./MyJobMagScraper');
+const JSearchImporter = require('./rapidapi/JSearchImporter');
+const LinkedInImporter = require('./rapidapi/LinkedInImporter');
+const JobsApi14Importer = require('./rapidapi/JobsApi14Importer');
 
 module.exports = {
   BaseScraper,
   BrighterMondayScraper,
   MyJobMagScraper,
-  
-  // Helper to get all available scrapers
+  JSearchImporter,
+  LinkedInImporter,
+  JobsApi14Importer,
+
   getAllScrapers: () => [
+    { name: 'JSearch', Class: JSearchImporter },
+    { name: 'LinkedIn', Class: LinkedInImporter },
+    { name: 'JobsAPI14', Class: JobsApi14Importer },
     { name: 'BrighterMonday', Class: BrighterMondayScraper },
     { name: 'MyJobMag', Class: MyJobMagScraper },
   ],
-  
-  // Helper to run a specific scraper
+
   runScraper: async (name, options = {}) => {
     const scrapers = {
+      jsearch: JSearchImporter,
+      linkedin: LinkedInImporter,
+      jobsapi14: JobsApi14Importer,
       brightermonday: BrighterMondayScraper,
       myjobmag: MyJobMagScraper,
     };
-    
+
     const ScraperClass = scrapers[name.toLowerCase()];
     if (!ScraperClass) {
-      throw new Error(`Unknown scraper: ${name}. Available: ${Object.keys(scrapers).join(', ')}`);
+      throw new Error(
+        `Unknown scraper: ${name}. Available: ${Object.keys(scrapers).join(', ')}`
+      );
     }
-    
+
     const scraper = new ScraperClass();
     return await scraper.run(options);
   },

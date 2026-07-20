@@ -38,6 +38,20 @@ const config = {
     password: process.env.SMTP_PASSWORD,
     from: process.env.EMAIL_FROM || 'noreply@jobswebsite.com',
   },
+
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN || '',
+    botUsername: process.env.TELEGRAM_BOT_USERNAME || '',
+  },
+
+  n8n: {
+    webhookUrl: process.env.N8N_WEBHOOK_URL || '',
+  },
+
+  uploads: {
+    cvDir: process.env.CV_UPLOAD_DIR || require('path').join(__dirname, '../../uploads/cvs'),
+    maxCvBytes: parseInt(process.env.MAX_CV_BYTES, 10) || 5 * 1024 * 1024,
+  },
   
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
@@ -47,6 +61,13 @@ const config = {
   pagination: {
     defaultPageSize: parseInt(process.env.DEFAULT_PAGE_SIZE, 10) || 20,
     maxPageSize: parseInt(process.env.MAX_PAGE_SIZE, 10) || 100,
+  },
+
+  rapidapi: {
+    // Support both RAPIDAPI_KEY and legacy RAPID_API_KEY
+    key: process.env.RAPIDAPI_KEY || process.env.RAPID_API_KEY || '',
+    maxRequestsPerRun: parseInt(process.env.RAPIDAPI_MAX_REQUESTS_PER_RUN, 10) || 80,
+    maxJobsPerSource: parseInt(process.env.INGEST_MAX_JOBS_PER_SOURCE, 10) || 400,
   },
 };
 

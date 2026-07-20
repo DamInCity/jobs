@@ -30,6 +30,8 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       imgSrc: ["'self'", "data:", "https:", "http:"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+      // Allow inline onclick/onerror handlers used by public/js (Helmet defaults this to 'none')
+      scriptSrcAttr: ["'unsafe-inline'"],
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -83,8 +85,11 @@ app.set('trust proxy', 1);
 // STATIC FILES
 // ============================================
 
-app.use(express.static(path.join(__dirname, '../public'), {
+const publicDir = path.join(__dirname, '../public');
+
+app.use(express.static(publicDir, {
   maxAge: config.env === 'production' ? '1d' : 0,
+  extensions: ['html'],
 }));
 
 // ============================================
@@ -107,16 +112,45 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============================================
-// FRONTEND ROUTES (SPA fallback)
+// FRONTEND PAGE ROUTES
 // ============================================
 
-// Serve index.html for all non-API routes (SPA support)
+const pageRoutes = {
+  '/login': 'login.html',
+  '/signin': 'login.html',
+  '/register': 'register.html',
+  '/signup': 'register.html',
+  '/sign-up': 'register.html',
+  '/categories': 'categories.html',
+  '/about': 'about.html',
+  '/alerts': 'alerts.html',
+  '/job-alerts': 'alerts.html',
+};
+
+Object.entries(pageRoutes).forEach(([route, file]) => {
+  app.get(route, (req, res) => {
+    res.sendFile(path.join(publicDir, file));
+  });
+});
+
+// Admin panel
+app.get('/admin', (req, res) => {
+  res.redirect(301, '/admin/');
+});
+app.get('/admin/', (req, res) => {
+  res.sendFile(path.join(publicDir, 'admin', 'index.html'));
+});
+
+// Homepage + unknown non-API paths → main app
 app.get('*', (req, res, next) => {
-  // Skip if it's an API route
   if (req.path.startsWith('/api/')) {
     return next();
   }
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+  // Don't rewrite real static assets
+  if (path.extname(req.path)) {
+    return next();
+  }
+  res.sendFile(path.join(publicDir, 'index.html'));
 });
 
 // ============================================
@@ -131,9 +165,24 @@ app.use(errorHandler);
 // ============================================
 
 const PORT = config.port;
+const db = require('./db');
+const { runMigrationsInProcess } = require('./db/migrate');
 
-const server = app.listen(PORT, () => {
-  console.log(`
+async function bootstrapSchema() {
+  // Always run migrations (idempotent CREATE + ALTER IF NOT EXISTS)
+  console.log('📦 Running database migrations on startup...');
+  try {
+    await runMigrationsInProcess();
+  } catch (error) {
+    console.error('❌ Startup migrations failed:', error.message);
+  }
+}
+
+async function start() {
+  await bootstrapSchema();
+
+  const server = app.listen(PORT, () => {
+    console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
 ║   🚀 ${config.app.name} Server Started!                        ║
@@ -144,23 +193,28 @@ const server = app.listen(PORT, () => {
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('Server closed.');
-    process.exit(0);
   });
-});
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('Server closed.');
-    process.exit(0);
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received. Shutting down gracefully...');
+    server.close(() => {
+      console.log('Server closed.');
+      process.exit(0);
+    });
   });
+
+  process.on('SIGINT', () => {
+    console.log('SIGINT received. Shutting down gracefully...');
+    server.close(() => {
+      console.log('Server closed.');
+      process.exit(0);
+    });
+  });
+}
+
+start().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 });
 
 module.exports = app;

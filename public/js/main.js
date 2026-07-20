@@ -343,13 +343,18 @@ async function loadCategories() {
     const container = document.getElementById('categoryFilters');
     if (!container) return;
 
-    container.innerHTML = response.data.map(cat => `
+    const selected = state.filters.category;
+    container.innerHTML = response.data.map(cat => {
+      const checked =
+        selected && (selected === cat.id || selected === cat.slug) ? 'checked' : '';
+      return `
       <label class="filter-checkbox">
-        <input type="checkbox" name="category" value="${cat.id}">
+        <input type="checkbox" name="category" value="${cat.slug}" ${checked}>
         <span class="checkmark"></span>
         ${cat.name} (${cat.job_count})
       </label>
-    `).join('');
+    `;
+    }).join('');
   } catch (error) {
     console.error('Failed to load categories:', error);
   }
