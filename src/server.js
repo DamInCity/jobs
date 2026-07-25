@@ -14,6 +14,7 @@ const adminRoutes = require('./routes/admin');
 const jobRoutes = require('./routes/jobs');
 const categoryRoutes = require('./routes/categories');
 const userRoutes = require('./routes/users');
+const ingestRoutes = require('./routes/ingest');
 
 const app = express();
 
@@ -100,6 +101,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/ingest', ingestRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

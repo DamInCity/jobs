@@ -2,13 +2,17 @@
 
 Imports job listings into JobsHub from RapidAPI sources (primary) and optional HTML scrapers (Kenya boards).
 
-## Primary sources (RapidAPI)
+## Primary sources
 
-| Source | Host | Bulk endpoint | Notes |
-|--------|------|---------------|-------|
-| **JSearch** | `jsearch.p.rapidapi.com` | `GET /search-v2` | Multi-board via Google for Jobs |
-| **LinkedIn** | `linkedin-job-search-api.p.rapidapi.com` | `GET /active-jb` | Fantastic.jobs LinkedIn feed (1–1000/call) |
-| **Jobs API14** | `jobs-api14.p.rapidapi.com` | `GET /v2/linkedin/search`, `/v2/bing/search` | Secondary volume + optional `/v2/salary/range` |
+| Source | Type | Notes |
+|--------|------|-------|
+| **MyJobMag** | HTML (Cheerio) | Kenya board; **enabled by default** (no API key) |
+| **JSearch** | RapidAPI | Multi-board via Google for Jobs (`/search-v2`) — needs `RAPIDAPI_KEY` |
+| **LinkedIn** | RapidAPI | Fantastic.jobs LinkedIn feed — needs key |
+| **Jobs API14** | RapidAPI | LinkedIn/Bing/Indeed search paths — needs key |
+| **n8n ingest** | Webhook | `POST /api/ingest/jobs` — see `docs/N8N.md` |
+
+Query streams (balanced across healthcare, education, trades, etc.) live in `src/scrapers/jobStreams.js`.
 
 Set in `.env`:
 

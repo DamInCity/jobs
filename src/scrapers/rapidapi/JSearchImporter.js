@@ -7,33 +7,13 @@
 const BaseScraper = require('../BaseScraper');
 const RapidApiClient = require('./RapidApiClient');
 const { mapCategory } = require('../categoryMapper');
+const { TITLES, LOCATIONS, hintForTitle } = require('../jobStreams');
 const config = require('../../config');
 
 const HOST = 'jsearch.p.rapidapi.com';
 
-const DEFAULT_TITLES = [
-  'software engineer',
-  'full stack developer',
-  'data engineer',
-  'data scientist',
-  'devops engineer',
-  'product manager',
-  'ui ux designer',
-  'digital marketing manager',
-  'sales representative',
-  'customer success',
-  'finance analyst',
-  'hr business partner',
-];
-
-// query location fragment + country code
-const DEFAULT_LOCATIONS = [
-  { query: 'United States', country: 'us' },
-  { query: 'United Kingdom', country: 'gb' },
-  { query: 'Kenya', country: 'ke' },
-  { query: 'Germany', country: 'de' },
-  { query: 'remote', country: 'us', workFromHome: true },
-];
+const DEFAULT_TITLES = TITLES.map((t) => t.query);
+const DEFAULT_LOCATIONS = LOCATIONS;
 
 class JSearchImporter extends BaseScraper {
   constructor() {
@@ -58,7 +38,8 @@ class JSearchImporter extends BaseScraper {
     const dryRun = options.dryRun || false;
     const titles = options.titles || DEFAULT_TITLES;
     const locations = options.locations || DEFAULT_LOCATIONS;
-    const maxPages = options.maxPages || 3;
+    // Fewer pages — more titles (broader career fields)
+    const maxPages = options.maxPages || 1;
 
     console.log(`\n🚀 Starting ${this.name} importer...`);
     console.log(`   Max jobs: ${maxJobs}`);
@@ -195,7 +176,11 @@ class JSearchImporter extends BaseScraper {
       benefits: benefitsFromHighlights || benefitsFromList || null,
       location: raw.job_location || [raw.job_city, raw.job_state, raw.job_country].filter(Boolean).join(', ') || 'Remote',
       job_type: jobType,
-      category: mapCategory({ title: raw.job_title, taxonomies: raw.job_function ? [raw.job_function] : [] }),
+      category: mapCategory({
+        title: raw.job_title,
+        taxonomies: raw.job_function ? [raw.job_function] : [],
+        explicit: raw._categoryHint || hintForTitle(raw.job_title),
+      }),
       salary_min: numberOrNull(raw.job_min_salary),
       salary_max: numberOrNull(raw.job_max_salary),
       salary_currency: raw.job_salary_currency || 'USD',

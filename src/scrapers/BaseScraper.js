@@ -3,9 +3,8 @@
  * Provides common functionality for all job scrapers
  */
 
-const db = require('../db');
-const slugify = require('slugify');
-const config = require('../config');
+const { saveJobRecord } = require('../db/saveJobRecord');
+const { preprocessJob } = require('./preprocessJob');
 
 class BaseScraper {
   constructor(name, baseUrl) {
@@ -130,16 +129,19 @@ class BaseScraper {
   }
 
   /**
-   * Validate job data before saving
+   * Validate job data before saving (runs shared preprocess rules)
    */
   validateJob(job) {
-    const required = ['title', 'company_name', 'external_link'];
-    for (const field of required) {
-      if (!job[field]) {
-        console.warn(`   ⚠️ Missing required field: ${field}`);
-        return false;
-      }
+    const result = preprocessJob(
+      { ...job, source: job.source || this.name },
+      { defaultSource: this.name }
+    );
+    if (!result.ok) {
+      console.warn(`   ⚠️ Invalid job (${result.reason}): ${job?.title || 'unknown'}`);
+      return false;
     }
+    // Mutate in place so saveJob gets normalized fields
+    Object.assign(job, result.job);
     return true;
   }
 
@@ -148,78 +150,14 @@ class BaseScraper {
    */
   async saveJob(job) {
     try {
-      // Check if job already exists (by external link)
-      const existing = await db.query(
-        'SELECT id FROM jobs WHERE external_link = $1',
-        [job.external_link]
-      );
-
-      if (existing.rows.length > 0) {
-        console.log(`   ⏭️  Skipped (exists): ${job.title}`);
-        return false;
-      }
-
-      // Generate slug
-      const slug = slugify(`${job.title}-${job.company_name}-${Date.now()}`, {
-        lower: true,
-        strict: true,
+      const result = await saveJobRecord(job, {
+        source: this.name,
+        skipPreprocess: true, // already validated/normalized
       });
-
-      // Find category by name or slug
-      let categoryId = null;
-      if (job.category) {
-        const catResult = await db.query(
-          `SELECT id FROM categories
-           WHERE LOWER(name) = LOWER($1)
-              OR LOWER(slug) = LOWER($1)
-              OR LOWER(slug) = LOWER(REPLACE($1, ' ', '-'))
-           LIMIT 1`,
-          [job.category]
-        );
-        if (catResult.rows.length > 0) {
-          categoryId = catResult.rows[0].id;
-        }
-      }
-
-      // Insert job
-      const result = await db.query(`
-        INSERT INTO jobs (
-          title, slug, company_name, company_logo_url, company_website, description,
-          requirements, benefits, location, job_type, category_id,
-          salary_min, salary_max, salary_currency, salary_period, external_link,
-          posted_date, expiry_date, status, source
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'active', $19
-        )
-        ON CONFLICT (external_link) DO NOTHING
-        RETURNING id
-      `, [
-        job.title,
-        slug,
-        job.company_name,
-        job.company_logo_url || null,
-        job.company_website || null,
-        job.description || '',
-        job.requirements || null,
-        job.benefits || null,
-        job.location || 'Remote',
-        job.job_type || 'onsite',
-        categoryId,
-        job.salary_min ?? null,
-        job.salary_max ?? null,
-        job.salary_currency || 'USD',
-        job.salary_period || 'yearly',
-        job.external_link,
-        job.posted_date || new Date(),
-        job.expiry_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days default
-        this.name,
-      ]);
-
-      if (result.rowCount === 0) {
-        console.log(`   ⏭️  Skipped (exists): ${job.title}`);
+      if (!result.saved) {
+        console.log(`   ⏭️  Skipped (${result.reason}): ${job.title}`);
         return false;
       }
-
       console.log(`   ✅ Saved: ${job.title} at ${job.company_name}`);
       return true;
     } catch (error) {

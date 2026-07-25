@@ -8,19 +8,13 @@
 const BaseScraper = require('../BaseScraper');
 const RapidApiClient = require('./RapidApiClient');
 const { mapCategory } = require('../categoryMapper');
+const { api14Queries } = require('../jobStreams');
 const config = require('../../config');
 const db = require('../../db');
 
 const HOST = 'jobs-api14.p.rapidapi.com';
 
-const DEFAULT_QUERIES = [
-  { query: 'software engineer', location: 'United States' },
-  { query: 'data engineer', location: 'United Kingdom' },
-  { query: 'product manager', location: 'United States' },
-  { query: 'devops engineer', location: 'Germany' },
-  { query: 'marketing manager', location: 'United States' },
-  { query: 'software developer', location: 'Kenya' },
-];
+const DEFAULT_QUERIES = api14Queries();
 
 // Working Jobs API14 listing paths (probed against live RapidAPI)
 const SEARCH_CANDIDATES = [
@@ -253,7 +247,10 @@ class JobsApi14Importer extends BaseScraper {
       job_type: this.parseJobType(
         `${raw.employmentType || ''} ${raw.jobType || ''} ${location} ${title}`
       ),
-      category: mapCategory({ title }),
+      category: mapCategory({
+        title,
+        explicit: raw._categoryHint || raw.categoryHint,
+      }),
       salary_min: salaryMin,
       salary_max: salaryMax,
       salary_currency: raw.salaryCurrency || raw.currency || 'USD',

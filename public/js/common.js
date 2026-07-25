@@ -180,6 +180,20 @@ const CATEGORY_ICONS = {
   lightbulb: 'fa-lightbulb',
   cogs: 'fa-cogs',
   briefcase: 'fa-briefcase',
+  heartbeat: 'fa-heartbeat',
+  'graduation-cap': 'fa-graduation-cap',
+  'hands-helping': 'fa-hands-helping',
+  'balance-scale': 'fa-balance-scale',
+  utensils: 'fa-utensils',
+  'hard-hat': 'fa-hard-hat',
+  tools: 'fa-tools',
+  industry: 'fa-industry',
+  seedling: 'fa-seedling',
+  truck: 'fa-truck',
+  'shopping-bag': 'fa-shopping-bag',
+  newspaper: 'fa-newspaper',
+  landmark: 'fa-landmark',
+  flask: 'fa-flask',
 };
 
 function categoryIconClass(icon) {

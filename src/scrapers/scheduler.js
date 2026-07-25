@@ -31,14 +31,18 @@ const CONFIG = {
   concurrency: 1,
 };
 
-// HTML scrapers disabled by default (heavy / brittle in Docker).
-// RapidAPI importers are the primary bulk sources.
+// RapidAPI importers need RAPIDAPI_KEY. MyJobMag (Cheerio) works without APIs.
+// BrighterMonday (Puppeteer) stays off unless ENABLE_HTML_SCRAPERS=true.
+const enableHtml = process.env.ENABLE_HTML_SCRAPERS === 'true';
+const hasRapidApi = Boolean(process.env.RAPIDAPI_KEY || process.env.RAPID_API_KEY);
+
 const SCRAPERS = [
-  { name: 'JSearch', Class: JSearchImporter, enabled: true },
-  { name: 'LinkedIn', Class: LinkedInImporter, enabled: true },
-  { name: 'JobsAPI14', Class: JobsApi14Importer, enabled: true },
-  { name: 'BrighterMonday', Class: BrighterMondayScraper, enabled: false },
-  { name: 'MyJobMag', Class: MyJobMagScraper, enabled: false },
+  { name: 'JSearch', Class: JSearchImporter, enabled: hasRapidApi },
+  { name: 'LinkedIn', Class: LinkedInImporter, enabled: hasRapidApi },
+  { name: 'JobsAPI14', Class: JobsApi14Importer, enabled: hasRapidApi },
+  { name: 'BrighterMonday', Class: BrighterMondayScraper, enabled: enableHtml },
+  // Default-on HTML source for broader local (Kenya) categories without paid APIs
+  { name: 'MyJobMag', Class: MyJobMagScraper, enabled: true },
 ];
 
 async function runAllScrapers(options = {}) {

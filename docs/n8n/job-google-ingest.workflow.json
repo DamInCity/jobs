@@ -1,0 +1,154 @@
+{
+  "name": "JobsHub Google/Board Ingest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "id": "cron-planner",
+      "name": "Every 6 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const titles = [\n  { query: 'registered nurse', categoryHint: 'healthcare' },\n  { query: 'primary school teacher', categoryHint: 'education' },\n  { query: 'social worker', categoryHint: 'social-work' },\n  { query: 'hotel receptionist', categoryHint: 'hospitality' },\n  { query: 'warehouse supervisor', categoryHint: 'logistics' },\n  { query: 'civil engineer', categoryHint: 'construction-trades' },\n  { query: 'electrician', categoryHint: 'skilled-trades' },\n  { query: 'accountant', categoryHint: 'finance' },\n  { query: 'software engineer', categoryHint: 'software-development' },\n  { query: 'farm manager', categoryHint: 'agriculture' }\n];\nconst locations = ['Kenya', 'Nairobi', 'United States'];\nconst items = [];\nfor (const t of titles) {\n  for (const loc of locations) {\n    items.push({ json: { ...t, location: loc, searchQuery: `${t.query} jobs in ${loc}` } });\n  }\n}\nreturn items;"
+      },
+      "id": "query-planner",
+      "name": "Query planner (titles x locations)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "content": "## Discovery placeholder\nReplace this Set node with:\n- SerpAPI / DataForSEO **Google Jobs** search using `searchQuery`, **or**\n- HTTP Request to a public board + HTML extract\n\nMap results to: title, company_name, external_link, location, description, categoryHint",
+        "height": 280,
+        "width": 360
+      },
+      "id": "note-discovery",
+      "name": "Note: wire discovery",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [480, -160]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "title",
+              "value": "={{ $json.query }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "company_name",
+              "value": "Example Employer (replace in discovery)",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "external_link",
+              "value": "={{ 'https://example.com/jobs/' + $json.query.replace(/\\s+/g, '-') + '-' + $json.location.replace(/\\s+/g, '-') }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "location",
+              "value": "={{ $json.location }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "description",
+              "value": "={{ 'Placeholder listing for ' + $json.searchQuery + '. Replace with real discovery output.' }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "category",
+              "value": "={{ $json.categoryHint }}",
+              "type": "string"
+            },
+            {
+              "id": "a7",
+              "name": "job_type",
+              "value": "onsite",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "placeholder-map",
+      "name": "Placeholder map (replace with SERP)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [520, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Light client-side preprocess (server also validates)\nconst item = $input.first().json;\nconst title = String(item.title || '').trim();\nconst company = String(item.company_name || item.company || '').trim();\nlet url = String(item.external_link || item.url || '').trim();\nif (!title || !company || !url) return [];\ntry {\n  const u = new URL(url.startsWith('http') ? url : 'https://' + url);\n  ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','fbclid','gclid'].forEach(k => u.searchParams.delete(k));\n  url = u.toString();\n} catch (e) { return []; }\nreturn [{\n  json: {\n    title: title.slice(0, 255),\n    company_name: company.slice(0, 255),\n    external_link: url,\n    location: item.location || 'Not specified',\n    description: String(item.description || title).slice(0, 50000),\n    job_type: item.job_type || 'onsite',\n    category: item.category || item.categoryHint || undefined,\n    source: 'n8n-google'\n  }\n}];"
+      },
+      "id": "preprocess",
+      "name": "Preprocess",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://jobs.usseo.one/api/ingest/jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Ingest-Key",
+              "value": "={{ $env.JOBSHUB_INGEST_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'n8n-google', jobs: [$json] }) }}",
+        "options": {}
+      },
+      "id": "ingest",
+      "name": "POST JobsHub ingest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 0]
+    }
+  ],
+  "connections": {
+    "Every 6 hours": {
+      "main": [[{ "node": "Query planner (titles x locations)", "type": "main", "index": 0 }]]
+    },
+    "Query planner (titles x locations)": {
+      "main": [[{ "node": "Placeholder map (replace with SERP)", "type": "main", "index": 0 }]]
+    },
+    "Placeholder map (replace with SERP)": {
+      "main": [[{ "node": "Preprocess", "type": "main", "index": 0 }]]
+    },
+    "Preprocess": {
+      "main": [[{ "node": "POST JobsHub ingest", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Skeleton: schedule → multi-field queries → (wire Google SERP/board) → preprocess → JobsHub ingest. Set env JOBSHUB_INGEST_KEY."
+  }
+}

@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "migrate": "node src/db/migrate.js",
     "seed": "node src/db/seed.js",
+    "seed:categories": "node src/db/seedCategories.js",
     "test": "jest",
     "scrape": "node src/scrapers/scheduler.js",
     "scrape:dry": "node src/scrapers/scheduler.js --dry-run",

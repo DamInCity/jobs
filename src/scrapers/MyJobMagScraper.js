@@ -88,67 +88,107 @@ class MyJobMagScraper extends BaseScraper {
       const html = await this.fetchHtml(url);
       const $ = this.cheerio.load(html);
 
-      // Extract job data
-      const title = $('h1').first().text().trim() ||
-                   $('.job-title').first().text().trim();
+      const h1 = this.cleanText($('h1').first().text() || $('.job-title').first().text() || '');
 
-      const company = $('.company-name').text().trim() ||
-                     $('[itemprop="hiringOrganization"]').text().trim() ||
-                     $('a[href*="/company/"]').first().text().trim();
+      // Company: /jobs-at/ link or "… at Company" from H1
+      let company = '';
+      const jobsAtText = this.cleanText($('a[href*="/jobs-at/"]').first().text() || '');
+      if (jobsAtText) {
+        company = jobsAtText
+          .replace(/^view\s+jobs\s+at\s+/i, '')
+          .replace(/^read\s+more\s+about\s+this\s+company$/i, '')
+          .trim();
+      }
+      if (!company || /^read more/i.test(company)) {
+        const atMatch = h1.match(/\bat\s+(.+)$/i);
+        if (atMatch) company = atMatch[1].trim();
+      }
+      if (!company) {
+        company = this.cleanText(
+          $('[itemprop="hiringOrganization"]').text() ||
+          $('.company-name').text() ||
+          'Unknown Employer'
+        );
+      }
 
-      const location = $('.location').text().trim() ||
-                      $('[itemprop="jobLocation"]').text().trim() ||
-                      'Kenya';
+      // Title without trailing " at Company"
+      let title = h1;
+      if (company) {
+        const stripped = title.replace(new RegExp(`\\s+at\\s+${escapeRegExp(company)}\\s*$`, 'i'), '').trim();
+        if (stripped) title = stripped;
+      }
+      // Fallback: strip any trailing " at …"
+      if (/\sat\s.+/i.test(title) && company) {
+        title = title.replace(/\s+at\s+.+$/i, '').trim() || title;
+      }
+      if (!title) title = h1;
 
-      const jobType = $('.job-type').text().trim() ||
-                     $('[itemprop="employmentType"]').text().trim() ||
-                     '';
+      const location =
+        this.cleanText($('a[href*="/jobs-location/"]').first().text()) ||
+        this.cleanText($('.location').text()) ||
+        this.extractKeyInfo($, 'Location') ||
+        'Kenya';
 
-      const salary = $('.salary').text().trim() ||
-                    $('[itemprop="baseSalary"]').text().trim() ||
-                    '';
+      const jobTypeRaw =
+        this.cleanText($('a[href*="/jobs-by-type/"]').first().text()) ||
+        this.extractKeyInfo($, 'Job Type') ||
+        this.cleanText($('.job-type').text()) ||
+        '';
 
-      const description = $('.job-description').html() ||
-                         $('[itemprop="description"]').html() ||
-                         $('.description').html() ||
-                         '';
+      const salary =
+        this.cleanText($('.salary').text()) ||
+        this.extractKeyInfo($, 'Salary') ||
+        '';
 
-      const requirements = $('.requirements').html() ||
-                          $('.qualifications').html() ||
-                          '';
+      const description =
+        $('.job-description').html() ||
+        $('.job-details').html() ||
+        $('[itemprop="description"]').html() ||
+        '';
 
-      const logo = $('.company-logo img').attr('src') ||
-                  $('[itemprop="logo"]').attr('src');
+      const requirements =
+        $('.requirements').html() ||
+        $('.qualifications').html() ||
+        null;
 
-      const category = $('.category').text().trim() ||
-                      $('.industry').text().trim() ||
-                      '';
+      const logo = $('.company-logo img').attr('src') || $('[itemprop="logo"]').attr('src');
 
-      // Posted date extraction
-      let postedDate = $('[itemprop="datePosted"]').attr('datetime') ||
-                      $('time').attr('datetime') ||
-                      null;
+      const fieldText =
+        this.cleanText($('a[href*="/jobs-by-field/"]').first().text()) ||
+        this.extractKeyInfo($, 'Job Field') ||
+        this.cleanText($('.job-industry').text()) ||
+        '';
+
+      const { mapCategory } = require('./categoryMapper');
+      const category = mapCategory({
+        title,
+        taxonomies: fieldText ? [fieldText] : [],
+      });
+
+      let postedDate =
+        $('[itemprop="datePosted"]').attr('datetime') ||
+        $('time').attr('datetime') ||
+        null;
 
       if (!title || !company) {
         console.warn(`   ⚠️ Could not parse job at ${url}`);
         return null;
       }
 
-      // Process salary
       const salaryInfo = this.parseSalary(salary);
 
       return {
         title: this.cleanText(title),
         company_name: this.cleanText(company),
         company_logo_url: logo ? (logo.startsWith('http') ? logo : `${this.baseUrl}${logo}`) : null,
-        description: description,
+        description: description || title,
         requirements: requirements || null,
         location: this.cleanText(location) || 'Kenya',
-        job_type: this.parseJobType(jobType),
-        category: category,
+        job_type: this.parseJobType(jobTypeRaw),
+        category,
         salary_min: salaryInfo.min,
         salary_max: salaryInfo.max,
-        salary_currency: salaryInfo.currency,
+        salary_currency: salaryInfo.currency || 'KES',
         external_link: url,
         posted_date: postedDate ? new Date(postedDate) : new Date(),
         expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -158,6 +198,19 @@ class MyJobMagScraper extends BaseScraper {
       throw error;
     }
   }
+
+  /** Parse "Label value" pairs from .job-key-info blocks */
+  extractKeyInfo($, label) {
+    const block = this.cleanText($('.job-key-info').text() || '');
+    if (!block) return '';
+    const re = new RegExp(`${label}\\s+([^\\n]+)`, 'i');
+    const m = block.match(re);
+    return m ? m[1].trim() : '';
+  }
+}
+
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 module.exports = MyJobMagScraper;

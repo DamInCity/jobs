@@ -7,24 +7,13 @@
 const BaseScraper = require('../BaseScraper');
 const RapidApiClient = require('./RapidApiClient');
 const { mapCategory } = require('../categoryMapper');
+const { titleQueries, linkedInLocationOr, hintForTitle } = require('../jobStreams');
 const config = require('../../config');
 
 const HOST = 'linkedin-job-search-api.p.rapidapi.com';
 
-const DEFAULT_TITLES = [
-  'Software Engineer',
-  'Data Engineer',
-  'Product Manager',
-  'Designer',
-  'Marketing',
-  'Sales',
-  'DevOps',
-  'Finance',
-  'Customer Success',
-  'Human Resources',
-];
-
-const DEFAULT_LOCATION = '"United States" OR "United Kingdom" OR "Kenya" OR "Germany"';
+const DEFAULT_TITLES = titleQueries();
+const DEFAULT_LOCATION = linkedInLocationOr();
 
 class LinkedInImporter extends BaseScraper {
   constructor() {
@@ -199,6 +188,7 @@ class LinkedInImporter extends BaseScraper {
       category: mapCategory({
         title: raw.title,
         taxonomies: raw.ai_taxonomies_a || [],
+        explicit: hintForTitle(raw.title),
       }),
       salary_min: numberOrNull(raw.ai_salary_min_value ?? raw.ai_salary_value),
       salary_max: numberOrNull(raw.ai_salary_max_value ?? raw.ai_salary_value),

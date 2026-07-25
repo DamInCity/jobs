@@ -48,6 +48,14 @@ const config = {
     webhookUrl: process.env.N8N_WEBHOOK_URL || '',
   },
 
+  ingest: {
+    apiKey: process.env.INGEST_API_KEY || '',
+  },
+
+  scrapers: {
+    enableHtml: process.env.ENABLE_HTML_SCRAPERS === 'true',
+  },
+
   uploads: {
     cvDir: process.env.CV_UPLOAD_DIR || require('path').join(__dirname, '../../uploads/cvs'),
     maxCvBytes: parseInt(process.env.MAX_CV_BYTES, 10) || 5 * 1024 * 1024,
