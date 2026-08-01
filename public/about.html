@@ -7,38 +7,41 @@
   <title>About - JobsHub</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23FF4F5E'/><text x='50' y='68' text-anchor='middle' font-size='52' font-family='system-ui' font-weight='800' fill='white'>J</text></svg>">
 </head>
 <body>
   <header class="header">
     <div class="container">
       <nav class="nav">
         <a href="/" class="logo">
-          <span class="logo-icon">💼</span>
-          <span class="logo-text">JobsHub</span>
+          <span class="logo-mark" aria-hidden="true">J</span>
+          <span class="logo-text">Jobs<span>Hub</span></span>
         </a>
         <div class="nav-links">
           <a href="/" class="nav-link">Jobs</a>
-          <a href="/categories" class="nav-link">Categories</a>
+          <a href="/categories" class="nav-link">Explore</a>
+          <a href="/alerts" class="nav-link">Alerts</a>
           <a href="/about" class="nav-link active">About</a>
         </div>
         <div class="nav-actions">
           <div class="auth-buttons" id="authButtons">
-            <a href="/login" class="btn btn-ghost">Sign In</a>
-            <a href="/register" class="btn btn-primary">Sign Up</a>
+            <a href="/login" class="btn btn-ghost">Sign in</a>
+            <a href="/register" class="btn btn-primary">Get started</a>
           </div>
           <div class="user-menu hidden" id="userMenu">
             <button class="user-menu-btn" id="userMenuBtn" type="button">
-              <i class="fas fa-user-circle"></i>
+              <span class="user-avatar" id="userAvatar">U</span>
               <span id="userName">User</span>
-              <i class="fas fa-chevron-down"></i>
+              <i class="fas fa-chevron-down" style="font-size:0.65rem;opacity:0.5"></i>
             </button>
             <div class="user-dropdown" id="userDropdown">
-              <a href="/"><i class="fas fa-briefcase"></i> Browse Jobs</a>
-              <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+              <a href="/"><i class="fas fa-briefcase"></i> Browse jobs</a>
+              <a href="/alerts"><i class="fas fa-bell"></i> Your alerts</a>
+              <hr>
+              <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign out</a>
             </div>
           </div>
           <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Menu">
@@ -49,70 +52,71 @@
     </div>
   </header>
 
-  <div class="mobile-menu hidden" id="mobileMenu">
+  <div class="mobile-menu" id="mobileMenu">
     <a href="/" class="mobile-nav-link">Jobs</a>
-    <a href="/categories" class="mobile-nav-link">Categories</a>
+    <a href="/categories" class="mobile-nav-link">Explore</a>
+    <a href="/alerts" class="mobile-nav-link">Alerts</a>
     <a href="/about" class="mobile-nav-link">About</a>
-    <hr>
+    <hr style="border:none;border-top:1px solid var(--border);margin:0.5rem 0">
     <div class="mobile-auth" id="mobileAuth">
-      <a href="/login" class="btn btn-ghost btn-block">Sign In</a>
-      <a href="/register" class="btn btn-primary btn-block">Sign Up</a>
+      <a href="/login" class="btn btn-ghost btn-block">Sign in</a>
+      <a href="/register" class="btn btn-primary btn-block">Get started</a>
     </div>
   </div>
 
   <main class="page-main">
     <section class="page-hero">
       <div class="container">
-        <h1 class="page-title">About JobsHub</h1>
-        <p class="page-subtitle">A modern job aggregator that helps you discover curated roles from companies worldwide.</p>
+        <span class="section-eyebrow" style="display:inline-block;margin-bottom:0.75rem">Our story</span>
+        <h1 class="page-title">Built for people who care about their next move</h1>
+        <p class="page-subtitle">JobsHub is a career discovery product — not a dusty database. We surface high-signal roles so finding work feels hopeful again.</p>
       </div>
     </section>
 
     <section class="section">
       <div class="container about-content">
         <div class="about-prose">
-          <h2>What we do</h2>
+          <h2>What we believe</h2>
           <p>
-            JobsHub brings together job listings from multiple sources so you can search, filter, and
-            explore opportunities in one place. We focus on clear descriptions, external apply links,
-            and a fast browsing experience — without forcing you through a complicated application form.
+            Job search shouldn’t feel like scrolling a spreadsheet. JobsHub brings listings from multiple
+            sources into one calm, carefully designed experience — clear details, honest pay when available,
+            and apply links that go straight to the employer.
           </p>
 
           <h2>How it works</h2>
           <div class="about-steps">
             <div class="about-step">
               <div class="about-step-num">1</div>
-              <h3>Browse &amp; filter</h3>
-              <p>Search by title, location, category, salary, and job type (remote, hybrid, on-site).</p>
+              <h3>Discover</h3>
+              <p>Search by role, place, path, salary, and work style — remote, hybrid, or on-site.</p>
             </div>
             <div class="about-step">
               <div class="about-step-num">2</div>
-              <h3>Review details</h3>
-              <p>Open a listing to see company info, requirements, benefits, and pay when available.</p>
+              <h3>Decide</h3>
+              <p>Open a role for company context, requirements, benefits, and compensation when shared.</p>
             </div>
             <div class="about-step">
               <div class="about-step-num">3</div>
-              <h3>Apply on the source</h3>
-              <p>Click through to the employer or job board and apply directly on their site.</p>
+              <h3>Apply</h3>
+              <p>Click through to the employer and apply on their site — no middleman forms.</p>
             </div>
           </div>
 
           <h2>Who it’s for</h2>
           <ul class="about-list">
-            <li><strong>Job seekers</strong> who want a clean, fast way to scan many openings.</li>
-            <li><strong>Career explorers</strong> comparing roles across categories and regions.</li>
-            <li><strong>Teams</strong> using JobsHub as a lightweight job board for their community.</li>
+            <li><strong>Job seekers</strong> who want a fast, human way to scan real openings.</li>
+            <li><strong>Career explorers</strong> comparing paths across industries and cities.</li>
+            <li><strong>Communities</strong> who need a lightweight board that still feels premium.</li>
           </ul>
 
-          <h2>Get started</h2>
+          <h2>Ready when you are</h2>
           <p>
-            Dive into the latest openings or explore roles by category. Create a free account if you
-            want to save jobs for later.
+            Dive into open roles, explore by path, or create a free account to shortlist and set alerts.
           </p>
           <div class="about-actions">
-            <a href="/" class="btn btn-primary btn-lg"><i class="fas fa-search"></i> Browse jobs</a>
-            <a href="/categories" class="btn btn-outline btn-lg"><i class="fas fa-th-large"></i> View categories</a>
-            <a href="/register" class="btn btn-ghost btn-lg"><i class="fas fa-user-plus"></i> Sign up free</a>
+            <a href="/" class="btn btn-primary btn-lg">Browse opportunities</a>
+            <a href="/categories" class="btn btn-outline btn-lg">Explore paths</a>
+            <a href="/register" class="btn btn-ghost btn-lg">Create free account</a>
           </div>
         </div>
 
@@ -121,16 +125,16 @@
             <h3><i class="fas fa-bolt"></i> Why JobsHub</h3>
             <ul>
               <li>Curated multi-source listings</li>
-              <li>Full-text search &amp; filters</li>
+              <li>Search &amp; filters that feel effortless</li>
               <li>Remote, hybrid, and on-site roles</li>
               <li>Direct apply links to employers</li>
-              <li>Free accounts for saved jobs</li>
+              <li>Free shortlist &amp; smart alerts</li>
             </ul>
           </div>
           <div class="about-aside-card">
             <h3><i class="fas fa-shield-alt"></i> Privacy</h3>
             <p>
-              We don’t sell your data. Sign-in is only used for features like saved jobs and alerts.
+              We don’t sell your data. Sign-in powers shortlists and alerts only.
               Applications happen on the employer’s site.
             </p>
           </div>
@@ -144,29 +148,29 @@
       <div class="footer-grid">
         <div class="footer-section">
           <h3 class="footer-logo">
-            <span class="logo-icon">💼</span>
+            <span class="logo-mark" style="width:32px;height:32px;font-size:0.85rem;border-radius:9px">J</span>
             JobsHub
           </h3>
-          <p>Find your dream job from our curated list of opportunities from top companies.</p>
+          <p>A smarter way to discover work that feels right.</p>
         </div>
         <div class="footer-section">
-          <h4>For Job Seekers</h4>
+          <h4>For you</h4>
           <ul>
-            <li><a href="/">Browse Jobs</a></li>
-            <li><a href="/categories">Categories</a></li>
+            <li><a href="/">Browse jobs</a></li>
+            <li><a href="/categories">Explore paths</a></li>
           </ul>
         </div>
         <div class="footer-section">
           <h4>Company</h4>
           <ul>
-            <li><a href="/about">About Us</a></li>
-            <li><a href="/login">Sign In</a></li>
-            <li><a href="/register">Sign Up</a></li>
+            <li><a href="/about">About</a></li>
+            <li><a href="/login">Sign in</a></li>
+            <li><a href="/register">Get started</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
-        <p>&copy; 2026 JobsHub. All rights reserved.</p>
+        <p>&copy; 2026 JobsHub</p>
       </div>
     </div>
   </footer>

@@ -178,6 +178,25 @@ async function bootstrapSchema() {
   } catch (error) {
     console.error('❌ Startup migrations failed:', error.message);
   }
+
+  // Ensure full category catalog exists (needed for CV profiling + job taxonomy)
+  try {
+    const { categories } = require('./db/categories');
+    for (const cat of categories) {
+      await db.query(
+        `INSERT INTO categories (name, slug, icon, description)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (slug) DO UPDATE SET
+           name = EXCLUDED.name,
+           icon = EXCLUDED.icon,
+           description = EXCLUDED.description,
+           updated_at = CURRENT_TIMESTAMP`,
+        [cat.name, cat.slug, cat.icon, cat.description]
+      );
+    }
+  } catch (error) {
+    console.error('⚠️ Category bootstrap failed:', error.message);
+  }
 }
 
 async function start() {

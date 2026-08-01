@@ -232,4 +232,4 @@ function mapCategory({ title = '', taxonomies = [], explicit } = {}) {
   return 'other';
 }
 
-module.exports = { mapCategory, TAXONOMY_TO_SLUG, KNOWN_SLUGS };
+module.exports = { mapCategory, TAXONOMY_TO_SLUG, KNOWN_SLUGS, TITLE_RULES };

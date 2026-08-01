@@ -33,9 +33,9 @@ async function loadCategoriesPage() {
               <div class="category-card-meta">
                 <span class="category-job-count">
                   <i class="fas fa-briefcase"></i>
-                  ${count} open ${count === 1 ? 'job' : 'jobs'}
+                  ${count} open ${count === 1 ? 'role' : 'roles'}
                 </span>
-                <span class="category-card-cta">View jobs <i class="fas fa-arrow-right"></i></span>
+                <span class="category-card-cta">Explore <i class="fas fa-arrow-right"></i></span>
               </div>
             </div>
           </a>

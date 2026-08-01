@@ -184,7 +184,15 @@ function applyProfileToChannels(profile) {
     tgCb.checked = linked && channels.includes('telegram');
   }
   if (status) {
-    status.textContent = linked ? 'Linked ✓' : 'Not linked';
+    if (linked) {
+      status.textContent = profile.telegram_username
+        ? `Linked ✓ (@${profile.telegram_username})`
+        : 'Linked ✓';
+    } else {
+      status.textContent = profile.telegram_username
+        ? `Not linked (saved @${profile.telegram_username})`
+        : 'Not linked';
+    }
     status.classList.toggle('ok', linked);
   }
   if (linkBtn) linkBtn.classList.toggle('hidden', linked);
@@ -203,6 +211,171 @@ function applyProfileToChannels(profile) {
   } else {
     if (cvStatus) cvStatus.textContent = 'No CV uploaded yet.';
     cvRemove?.classList.add('hidden');
+  }
+
+  renderSkillProfile(profile);
+}
+
+function renderTagList(el, items, emptyLabel) {
+  if (!el) return;
+  if (!items || !items.length) {
+    el.innerHTML = `<span class="text-muted small">${escapeHtml(emptyLabel)}</span>`;
+    return;
+  }
+  el.innerHTML = items
+    .map((t) => `<span class="profile-tag">${escapeHtml(typeof t === 'string' ? t : t.name || t)}</span>`)
+    .join('');
+}
+
+function renderEditableSkills(skills) {
+  const el = document.getElementById('profileSkills');
+  if (!el) return;
+  const list = Array.isArray(skills) ? skills : [];
+  if (!list.length) {
+    el.innerHTML = '<span class="text-muted small">No skills yet — add some below.</span>';
+    return;
+  }
+  el.innerHTML = list
+    .map(
+      (skill, index) => `
+      <span class="profile-tag profile-tag-removable" data-skill-index="${index}">
+        ${escapeHtml(skill)}
+        <button type="button" class="profile-tag-remove" data-remove-skill="${index}" aria-label="Remove ${escapeHtml(skill)}">
+          &times;
+        </button>
+      </span>`
+    )
+    .join('');
+
+  el.querySelectorAll('[data-remove-skill]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const idx = parseInt(btn.getAttribute('data-remove-skill'), 10);
+      removeSkillAt(idx);
+    });
+  });
+}
+
+function getCurrentSkills() {
+  const skills = state.user?.skills;
+  return Array.isArray(skills) ? [...skills] : [];
+}
+
+async function persistSkills(skills) {
+  const cleaned = [...new Set(skills.map((s) => String(s).trim()).filter(Boolean))].slice(0, 40);
+  const res = await api('/users/profile', {
+    method: 'PUT',
+    body: JSON.stringify({ skills: cleaned }),
+  });
+  state.user = { ...state.user, ...res.data };
+  applyProfileToChannels(state.user);
+  await loadAlerts();
+  return res;
+}
+
+async function addSkillFromInput() {
+  const input = document.getElementById('skillInput');
+  const raw = (input?.value || '').trim();
+  if (!raw) {
+    showNotification('Enter a skill first', 'error');
+    return;
+  }
+  // Allow comma-separated batch add
+  const parts = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const existing = getCurrentSkills();
+  const existingLower = new Set(existing.map((s) => s.toLowerCase()));
+  let added = 0;
+  for (const part of parts) {
+    if (existingLower.has(part.toLowerCase())) continue;
+    existing.push(part);
+    existingLower.add(part.toLowerCase());
+    added += 1;
+  }
+  if (!added) {
+    showNotification('Skill already on your profile', 'info');
+    if (input) input.value = '';
+    return;
+  }
+  try {
+    await persistSkills(existing);
+    if (input) input.value = '';
+    showNotification(added === 1 ? 'Skill added' : `${added} skills added`, 'success');
+  } catch (error) {
+    showNotification(error.message || 'Could not save skills', 'error');
+  }
+}
+
+async function removeSkillAt(index) {
+  const skills = getCurrentSkills();
+  if (index < 0 || index >= skills.length) return;
+  const removed = skills.splice(index, 1)[0];
+  try {
+    await persistSkills(skills);
+    showNotification(`Removed “${removed}”`, 'success');
+  } catch (error) {
+    showNotification(error.message || 'Could not remove skill', 'error');
+  }
+}
+
+function renderSkillProfile(profile) {
+  const statusLine = document.getElementById('profileStatusLine');
+  const details = document.getElementById('profileDetails');
+  const summary = document.getElementById('profileSummary');
+  const seniority = document.getElementById('profileSeniority');
+  const confirmBtn = document.getElementById('confirmProfileBtn');
+  const reprofileBtn = document.getElementById('reprofileBtn');
+
+  details?.classList.remove('hidden');
+
+  const hasSkills = !!(profile.skills && profile.skills.length);
+  const hasCats = !!(profile.preferred_categories && profile.preferred_categories.length);
+  const hasCv = !!profile.has_cv;
+
+  if (statusLine) {
+    if (profile.profile_status === 'pending_confirm' && hasCv) {
+      statusLine.textContent =
+        'CV suggestions ready — confirm when it looks right. You can still add skills manually anytime.';
+    } else if (hasSkills || hasCats) {
+      statusLine.textContent =
+        profile.profile_status === 'confirmed'
+          ? 'Profile active — digests use your skills & categories. Add more skills anytime.'
+          : 'Your skills drive matching. Upload a CV anytime to suggest more (won’t remove yours).';
+    } else {
+      statusLine.textContent =
+        'Add skills manually below, and/or upload a CV to auto-suggest. Both work together.';
+    }
+  }
+
+  if (summary) {
+    summary.textContent = profile.profile_summary || '';
+    summary.classList.toggle('hidden', !profile.profile_summary);
+  }
+  if (seniority) {
+    seniority.textContent = profile.profile_seniority
+      ? `Seniority: ${profile.profile_seniority}`
+      : '';
+  }
+
+  const catNames =
+    profile.category_names?.map((c) => c.name) ||
+    (profile.preferred_categories || []).map((id) => window.__categoryMap?.[id] || 'Category');
+  renderTagList(document.getElementById('profileCategories'), catNames, 'No categories yet (set via alert or CV)');
+  renderEditableSkills(profile.skills || []);
+  renderTagList(
+    document.getElementById('profileLocations'),
+    profile.preferred_locations || [],
+    'No locations yet'
+  );
+
+  if (confirmBtn) {
+    const needsConfirm = profile.profile_status === 'pending_confirm' && (hasSkills || hasCats || hasCv);
+    confirmBtn.classList.toggle('hidden', !needsConfirm);
+  }
+  if (reprofileBtn) {
+    reprofileBtn.classList.toggle('hidden', !hasCv);
   }
 }
 
@@ -259,6 +432,11 @@ async function uploadCv(file) {
   if (!file) return;
   const formData = new FormData();
   formData.append('cv', file);
+  const pickBtn = document.getElementById('cvPickBtn');
+  if (pickBtn) {
+    pickBtn.disabled = true;
+    pickBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Profiling…';
+  }
 
   try {
     const response = await fetch('/api/users/cv', {
@@ -272,17 +450,26 @@ async function uploadCv(file) {
     if (!response.ok) {
       throw new Error(data.message || 'Upload failed');
     }
-    showNotification('CV uploaded', 'success');
-    const profile = await api('/users/profile');
-    state.user = profile.data;
-    applyProfileToChannels(profile.data);
+    state.user = data.data;
+    applyProfileToChannels(data.data);
+    await loadAlerts();
+    if (data.data?.profile_error) {
+      showNotification(data.message || 'CV uploaded; profiling failed', 'error');
+    } else {
+      showNotification(data.message || 'CV uploaded and profiled', 'success');
+    }
   } catch (error) {
     showNotification(error.message || 'Upload failed', 'error');
+  } finally {
+    if (pickBtn) {
+      pickBtn.disabled = false;
+      pickBtn.innerHTML = '<i class="fas fa-upload"></i> Upload CV';
+    }
   }
 }
 
 async function removeCv() {
-  if (!confirm('Remove your CV?')) return;
+  if (!confirm('Remove your CV and skill profile?')) return;
   try {
     await api('/users/cv', { method: 'DELETE' });
     showNotification('CV removed', 'success');
@@ -291,6 +478,40 @@ async function removeCv() {
     applyProfileToChannels(profile.data);
   } catch (error) {
     showNotification(error.message || 'Remove failed', 'error');
+  }
+}
+
+async function confirmProfile() {
+  try {
+    const res = await api('/users/profile/confirm', { method: 'POST', body: JSON.stringify({}) });
+    state.user = res.data;
+    applyProfileToChannels(res.data);
+    await loadAlerts();
+    showNotification(res.message || 'Profile confirmed', 'success');
+  } catch (error) {
+    showNotification(error.message || 'Confirm failed', 'error');
+  }
+}
+
+async function reprofileCv() {
+  const btn = document.getElementById('reprofileBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Working…';
+  }
+  try {
+    const res = await api('/users/cv/reprofile', { method: 'POST', body: JSON.stringify({}) });
+    state.user = res.data;
+    applyProfileToChannels(res.data);
+    await loadAlerts();
+    showNotification(res.message || 'Re-profiled', 'success');
+  } catch (error) {
+    showNotification(error.message || 'Re-profile failed', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-sync"></i> Re-profile CV';
+    }
   }
 }
 
@@ -309,6 +530,19 @@ async function initAlertsPage() {
   }
 
   app?.classList.remove('hidden');
+
+  // Fresh profile (includes skills / CV profile fields)
+  try {
+    const profile = await api('/users/profile');
+    state.user = profile.data;
+  } catch {
+    /* keep session user */
+  }
+
+  if (new URLSearchParams(window.location.search).get('onboarding') === '1') {
+    document.getElementById('onboardingBanner')?.removeAttribute('hidden');
+  }
+
   await loadCategories();
   applyProfileToChannels(state.user || {});
   await loadAlerts();
@@ -328,6 +562,31 @@ async function initAlertsPage() {
     e.target.value = '';
   });
   document.getElementById('cvRemoveBtn')?.addEventListener('click', removeCv);
+  document.getElementById('confirmProfileBtn')?.addEventListener('click', confirmProfile);
+  document.getElementById('reprofileBtn')?.addEventListener('click', reprofileCv);
+  document.getElementById('addSkillBtn')?.addEventListener('click', addSkillFromInput);
+  document.getElementById('skillInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addSkillFromInput();
+    }
+  });
+
+  // Location chips — click to fill location input
+  const locationInput = document.getElementById('alertLocation');
+  document.querySelectorAll('.location-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const loc = chip.dataset.location;
+      if (locationInput.value === loc) {
+        locationInput.value = '';
+        document.querySelectorAll('.location-chip').forEach((c) => c.classList.remove('active'));
+      } else {
+        locationInput.value = loc;
+        document.querySelectorAll('.location-chip').forEach((c) => c.classList.toggle('active', c.dataset.location === loc));
+      }
+      locationInput.focus();
+    });
+  });
 
   // Refresh profile when user returns from Telegram
   document.addEventListener('visibilitychange', async () => {

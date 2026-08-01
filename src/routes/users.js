@@ -9,6 +9,8 @@ const config = require('../config');
 const { authenticate, generateToken } = require('../middleware/auth');
 const { asyncHandler, AppError } = require('../middleware/errorHandler');
 const { userValidation } = require('../middleware/validation');
+const { profileCvFile } = require('../services/cvProfiler');
+const { ensurePreferenceAlert } = require('../jobs/emailAlerts');
 
 const router = express.Router();
 
@@ -48,7 +50,7 @@ const cvUpload = multer({
 
 // Register new user
 router.post('/register', userValidation.register, asyncHandler(async (req, res) => {
-  const { email, password, name } = req.body;
+  const { email, password, name, telegram_username } = req.body;
 
   // Check if user exists
   const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
@@ -59,12 +61,20 @@ router.post('/register', userValidation.register, asyncHandler(async (req, res) 
   // Hash password
   const passwordHash = await bcrypt.hash(password, 12);
 
-  // Create user
+  let tgUser = null;
+  if (telegram_username !== undefined && telegram_username !== null && String(telegram_username).trim()) {
+    tgUser = String(telegram_username).trim().replace(/^@/, '').slice(0, 64);
+    if (!/^[A-Za-z0-9_]{5,64}$/.test(tgUser)) {
+      throw new AppError('Telegram username must be 5–64 characters (letters, numbers, underscore)', 400);
+    }
+  }
+
+  // Create user (telegram_username is optional contact hint; delivery still needs bot link)
   const result = await db.query(`
-    INSERT INTO users (email, password_hash, name, role)
-    VALUES ($1, $2, $3, 'user')
-    RETURNING id, email, name, role, created_at
-  `, [email.toLowerCase(), passwordHash, name]);
+    INSERT INTO users (email, password_hash, name, role, telegram_username)
+    VALUES ($1, $2, $3, 'user', $4)
+    RETURNING id, email, name, role, telegram_username, created_at
+  `, [email.toLowerCase(), passwordHash, name, tgUser]);
 
   const user = result.rows[0];
   const token = generateToken(user);
@@ -79,6 +89,11 @@ router.post('/register', userValidation.register, asyncHandler(async (req, res) 
         email: user.email,
         name: user.name,
         role: user.role,
+        telegram_username: user.telegram_username,
+      },
+      next_steps: {
+        onboarding_url: '/alerts?onboarding=1',
+        message: 'Upload your CV and link Telegram to receive matched jobs',
       },
     },
   });
@@ -132,33 +147,20 @@ router.get('/profile', authenticate, asyncHandler(async (req, res) => {
   const result = await db.query(`
     SELECT id, email, name, avatar_url, preferred_locations, preferred_job_types, 
            preferred_categories, email_verified, created_at,
-           telegram_chat_id, whatsapp_number, notify_channels,
+           telegram_chat_id, telegram_username, whatsapp_number, notify_channels,
            cv_original_name, cv_uploaded_at,
+           skills, profile_summary, profile_seniority, profile_keywords,
+           profile_status, profiled_at,
            (cv_path IS NOT NULL) AS has_cv,
            (telegram_chat_id IS NOT NULL) AS telegram_linked
     FROM users WHERE id = $1
   `, [req.user.id]);
 
   const row = result.rows[0];
+  const categoryNames = await resolveCategoryNames(row.preferred_categories);
   res.json({
     success: true,
-    data: {
-      id: row.id,
-      email: row.email,
-      name: row.name,
-      avatar_url: row.avatar_url,
-      preferred_locations: row.preferred_locations,
-      preferred_job_types: row.preferred_job_types,
-      preferred_categories: row.preferred_categories,
-      email_verified: row.email_verified,
-      created_at: row.created_at,
-      whatsapp_number: row.whatsapp_number,
-      notify_channels: row.notify_channels || ['email'],
-      cv_original_name: row.cv_original_name,
-      cv_uploaded_at: row.cv_uploaded_at,
-      has_cv: !!row.has_cv,
-      telegram_linked: !!row.telegram_linked,
-    },
+    data: formatProfile(row, categoryNames),
   });
 }));
 
@@ -172,6 +174,10 @@ router.put('/profile', authenticate, userValidation.updateProfile, asyncHandler(
     preferred_categories,
     notify_channels,
     whatsapp_number,
+    telegram_username,
+    skills,
+    profile_summary,
+    profile_seniority,
   } = req.body;
 
   const updates = [];
@@ -197,6 +203,39 @@ router.put('/profile', authenticate, userValidation.updateProfile, asyncHandler(
   if (preferred_categories !== undefined) {
     updates.push(`preferred_categories = $${paramIndex++}`);
     params.push(preferred_categories);
+  }
+  if (telegram_username !== undefined) {
+    let tg = telegram_username ? String(telegram_username).trim().replace(/^@/, '') : null;
+    if (tg === '') tg = null;
+    if (tg && !/^[A-Za-z0-9_]{5,64}$/.test(tg)) {
+      throw new AppError('Telegram username must be 5–64 characters (letters, numbers, underscore)', 400);
+    }
+    updates.push(`telegram_username = $${paramIndex++}`);
+    params.push(tg);
+  }
+  if (skills !== undefined) {
+    const cleanedSkills = Array.isArray(skills)
+      ? [...new Set(skills.map((s) => String(s).trim()).filter(Boolean))].slice(0, 40)
+      : [];
+    updates.push(`skills = $${paramIndex++}`);
+    params.push(cleanedSkills.length ? cleanedSkills : null);
+    // Keep keyword filters in sync with manual skill list
+    updates.push(`profile_keywords = $${paramIndex++}`);
+    params.push(cleanedSkills.length ? cleanedSkills.slice(0, 12) : null);
+    // Manual edits count as a confirmed profile when skills or other prefs exist
+    updates.push(`profile_status = CASE
+      WHEN profile_status = 'none' OR profile_status IS NULL THEN 'confirmed'
+      ELSE profile_status
+    END`);
+    updates.push(`profiled_at = COALESCE(profiled_at, NOW())`);
+  }
+  if (profile_summary !== undefined) {
+    updates.push(`profile_summary = $${paramIndex++}`);
+    params.push(profile_summary ? String(profile_summary).slice(0, 1000) : null);
+  }
+  if (profile_seniority !== undefined) {
+    updates.push(`profile_seniority = $${paramIndex++}`);
+    params.push(profile_seniority || null);
   }
   if (notify_channels !== undefined) {
     if (!Array.isArray(notify_channels) || notify_channels.length === 0) {
@@ -227,16 +266,31 @@ router.put('/profile', authenticate, userValidation.updateProfile, asyncHandler(
     UPDATE users SET ${updates.join(', ')} 
     WHERE id = $${paramIndex}
     RETURNING id, email, name, avatar_url, preferred_locations, preferred_job_types,
-              preferred_categories, notify_channels, whatsapp_number,
+              preferred_categories, notify_channels, whatsapp_number, telegram_username,
+              skills, profile_summary, profile_seniority, profile_keywords,
+              profile_status, profiled_at,
               cv_original_name, cv_uploaded_at,
               (cv_path IS NOT NULL) AS has_cv,
               (telegram_chat_id IS NOT NULL) AS telegram_linked
   `, params);
 
+  const row = result.rows[0];
+  const categoryNames = await resolveCategoryNames(row.preferred_categories);
+
+  // Keep "My profile" alert in sync when prefs/skills change
+  try {
+    await ensurePreferenceAlert(req.user.id, row, {
+      name: 'My profile',
+      forceCreate: skills !== undefined || preferred_categories !== undefined,
+    });
+  } catch (err) {
+    console.warn('Could not sync preference alert after profile update:', err.message);
+  }
+
   res.json({
     success: true,
     message: 'Profile updated successfully',
-    data: result.rows[0],
+    data: formatProfile(row, categoryNames),
   });
 }));
 
@@ -432,15 +486,22 @@ router.delete('/telegram/link', authenticate, asyncHandler(async (req, res) => {
 router.get('/cv', authenticate, asyncHandler(async (req, res) => {
   const result = await db.query(
     `
-    SELECT cv_original_name, cv_uploaded_at, (cv_path IS NOT NULL) AS has_cv
+    SELECT cv_original_name, cv_uploaded_at, (cv_path IS NOT NULL) AS has_cv,
+           skills, profile_summary, profile_seniority, profile_keywords,
+           profile_status, profiled_at, preferred_categories, preferred_locations
     FROM users WHERE id = $1
     `,
     [req.user.id]
   );
 
+  const row = result.rows[0];
+  const categoryNames = await resolveCategoryNames(row.preferred_categories);
   res.json({
     success: true,
-    data: result.rows[0],
+    data: {
+      ...row,
+      category_names: categoryNames,
+    },
   });
 }));
 
@@ -475,23 +536,171 @@ router.post(
       }
     }
 
-    const result = await db.query(
+    await db.query(
       `
       UPDATE users
       SET cv_path = $1, cv_original_name = $2, cv_uploaded_at = NOW()
       WHERE id = $3
-      RETURNING cv_original_name, cv_uploaded_at, (cv_path IS NOT NULL) AS has_cv
       `,
       [req.file.path, req.file.originalname, req.user.id]
     );
 
+    // Profile from CV (rules + optional xAI)
+    let profile = null;
+    let profileError = null;
+    try {
+      profile = await profileCvFile(req.file.path);
+      await applyCvProfileToUser(req.user.id, profile, { status: 'pending_confirm' });
+    } catch (error) {
+      profileError = error.message;
+      console.warn(`CV profile failed for ${req.user.id}:`, error.message);
+    }
+
+    const result = await db.query(
+      `
+      SELECT id, email, name, preferred_locations, preferred_job_types, preferred_categories,
+             skills, profile_summary, profile_seniority, profile_keywords,
+             profile_status, profiled_at, telegram_username, notify_channels, whatsapp_number,
+             cv_original_name, cv_uploaded_at,
+             (cv_path IS NOT NULL) AS has_cv,
+             (telegram_chat_id IS NOT NULL) AS telegram_linked
+      FROM users WHERE id = $1
+      `,
+      [req.user.id]
+    );
+    const row = result.rows[0];
+    const categoryNames = await resolveCategoryNames(row.preferred_categories);
+
+    if (profile && !profileError) {
+      try {
+        await ensurePreferenceAlert(req.user.id, row, { name: 'My profile', forceCreate: true });
+      } catch (err) {
+        console.warn('Could not create profile alert:', err.message);
+      }
+    }
+
     res.status(201).json({
       success: true,
-      message: 'CV uploaded successfully',
-      data: result.rows[0],
+      message: profileError
+        ? 'CV uploaded, but automatic profiling failed — set preferences manually'
+        : 'CV uploaded and profiled — please confirm your profile',
+      data: {
+        ...formatProfile(row, categoryNames),
+        profiling: profile
+          ? {
+              method: profile.method,
+              confidence: profile.confidence,
+              category_slugs: profile.category_slugs,
+              extract_method: profile.extract_method,
+            }
+          : null,
+        profile_error: profileError,
+      },
     });
   })
 );
+
+// Re-run profiling on existing CV
+router.post('/cv/reprofile', authenticate, asyncHandler(async (req, res) => {
+  const prev = await db.query('SELECT cv_path FROM users WHERE id = $1', [req.user.id]);
+  const cvPath = prev.rows[0]?.cv_path;
+  if (!cvPath || !fs.existsSync(cvPath)) {
+    throw new AppError('No CV on file to profile', 404);
+  }
+
+  const profile = await profileCvFile(cvPath);
+  await applyCvProfileToUser(req.user.id, profile, { status: 'pending_confirm' });
+
+  const result = await db.query(
+    `
+    SELECT id, email, name, preferred_locations, preferred_job_types, preferred_categories,
+           skills, profile_summary, profile_seniority, profile_keywords,
+           profile_status, profiled_at, telegram_username, notify_channels, whatsapp_number,
+           cv_original_name, cv_uploaded_at,
+           (cv_path IS NOT NULL) AS has_cv,
+           (telegram_chat_id IS NOT NULL) AS telegram_linked
+    FROM users WHERE id = $1
+    `,
+    [req.user.id]
+  );
+  const row = result.rows[0];
+  await ensurePreferenceAlert(req.user.id, row, { name: 'My profile', forceCreate: true });
+  const categoryNames = await resolveCategoryNames(row.preferred_categories);
+
+  res.json({
+    success: true,
+    message: 'CV re-profiled — please confirm',
+    data: formatProfile(row, categoryNames),
+  });
+}));
+
+// Confirm or edit profile suggestions from CV
+router.post('/profile/confirm', authenticate, asyncHandler(async (req, res) => {
+  const {
+    preferred_categories,
+    preferred_locations,
+    preferred_job_types,
+    skills,
+    profile_summary,
+    profile_seniority,
+  } = req.body || {};
+
+  const updates = [`profile_status = 'confirmed'`, `profiled_at = NOW()`];
+  const params = [];
+  let i = 1;
+
+  if (preferred_categories !== undefined) {
+    updates.push(`preferred_categories = $${i++}`);
+    params.push(preferred_categories);
+  }
+  if (preferred_locations !== undefined) {
+    updates.push(`preferred_locations = $${i++}`);
+    params.push(preferred_locations);
+  }
+  if (preferred_job_types !== undefined) {
+    updates.push(`preferred_job_types = $${i++}`);
+    params.push(preferred_job_types);
+  }
+  if (skills !== undefined) {
+    updates.push(`skills = $${i++}`);
+    updates.push(`profile_keywords = $${i++}`);
+    const cleaned = Array.isArray(skills) ? skills.map(String).slice(0, 40) : [];
+    params.push(cleaned, cleaned.slice(0, 12));
+  }
+  if (profile_summary !== undefined) {
+    updates.push(`profile_summary = $${i++}`);
+    params.push(profile_summary ? String(profile_summary).slice(0, 1000) : null);
+  }
+  if (profile_seniority !== undefined) {
+    updates.push(`profile_seniority = $${i++}`);
+    params.push(profile_seniority || null);
+  }
+
+  params.push(req.user.id);
+  const result = await db.query(
+    `
+    UPDATE users SET ${updates.join(', ')}
+    WHERE id = $${i}
+    RETURNING id, email, name, preferred_locations, preferred_job_types, preferred_categories,
+              skills, profile_summary, profile_seniority, profile_keywords,
+              profile_status, profiled_at, telegram_username, notify_channels, whatsapp_number,
+              cv_original_name, cv_uploaded_at,
+              (cv_path IS NOT NULL) AS has_cv,
+              (telegram_chat_id IS NOT NULL) AS telegram_linked
+    `,
+    params
+  );
+
+  const row = result.rows[0];
+  await ensurePreferenceAlert(req.user.id, row, { name: 'My profile', forceCreate: true });
+  const categoryNames = await resolveCategoryNames(row.preferred_categories);
+
+  res.json({
+    success: true,
+    message: 'Profile confirmed — you will only get matching job alerts',
+    data: formatProfile(row, categoryNames),
+  });
+}));
 
 router.delete('/cv', authenticate, asyncHandler(async (req, res) => {
   const prev = await db.query('SELECT cv_path FROM users WHERE id = $1', [req.user.id]);
@@ -504,6 +713,7 @@ router.delete('/cv', authenticate, asyncHandler(async (req, res) => {
     }
   }
 
+  // Remove file only — keep manual/CV-derived skills & preferences for matching
   await db.query(
     `
     UPDATE users
@@ -515,7 +725,7 @@ router.delete('/cv', authenticate, asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: 'CV removed',
+    message: 'CV removed (skills and preferences kept)',
   });
 }));
 
@@ -670,5 +880,147 @@ router.delete('/alerts/:id', authenticate, asyncHandler(async (req, res) => {
     message: 'Job alert deleted successfully',
   });
 }));
+
+// ============================================
+// PROFILE HELPERS
+// ============================================
+
+function formatProfile(row, categoryNames = []) {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    avatar_url: row.avatar_url,
+    preferred_locations: row.preferred_locations,
+    preferred_job_types: row.preferred_job_types,
+    preferred_categories: row.preferred_categories,
+    category_names: categoryNames,
+    email_verified: row.email_verified,
+    created_at: row.created_at,
+    whatsapp_number: row.whatsapp_number,
+    telegram_username: row.telegram_username,
+    notify_channels: row.notify_channels || ['email'],
+    skills: row.skills || [],
+    profile_summary: row.profile_summary,
+    profile_seniority: row.profile_seniority,
+    profile_keywords: row.profile_keywords || [],
+    profile_status: row.profile_status || 'none',
+    profiled_at: row.profiled_at,
+    cv_original_name: row.cv_original_name,
+    cv_uploaded_at: row.cv_uploaded_at,
+    has_cv: !!row.has_cv,
+    telegram_linked: !!row.telegram_linked,
+  };
+}
+
+async function resolveCategoryNames(categoryIds) {
+  const ids = Array.isArray(categoryIds) ? categoryIds.filter(Boolean) : [];
+  if (!ids.length) return [];
+  try {
+    const result = await db.query(
+      `SELECT id, name, slug FROM categories WHERE id = ANY($1::uuid[])`,
+      [ids]
+    );
+    return result.rows;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Merge unique strings case-insensitively (existing first, then new).
+ */
+function mergeStringLists(existing, incoming, max = 40) {
+  const out = [];
+  const seen = new Set();
+  for (const raw of [...(existing || []), ...(incoming || [])]) {
+    const s = String(raw || '').trim();
+    if (!s) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/**
+ * Map profile category slugs → UUIDs and merge onto the user.
+ * CV profiling is additive: existing manual skills/categories/locations are kept.
+ */
+async function applyCvProfileToUser(userId, profile, options = {}) {
+  const prev = await db.query(
+    `
+    SELECT preferred_categories, preferred_locations, skills, profile_keywords,
+           profile_summary, profile_seniority
+    FROM users WHERE id = $1
+    `,
+    [userId]
+  );
+  const existing = prev.rows[0] || {};
+
+  const slugs = profile.category_slugs || [];
+  let detectedCategoryIds = [];
+  if (slugs.length) {
+    const catResult = await db.query(
+      `
+      SELECT id FROM categories
+      WHERE LOWER(slug) = ANY($1::text[])
+         OR LOWER(name) = ANY($1::text[])
+      `,
+      [slugs.map((s) => String(s).toLowerCase())]
+    );
+    detectedCategoryIds = catResult.rows.map((r) => r.id);
+  }
+
+  const existingCats = Array.isArray(existing.preferred_categories)
+    ? existing.preferred_categories.map(String)
+    : [];
+  const categoryIds = [...new Set([...existingCats, ...detectedCategoryIds.map(String)])];
+
+  const cvSkills = Array.isArray(profile.skills) ? profile.skills.map(String) : [];
+  const skills = mergeStringLists(existing.skills, cvSkills, 40);
+
+  const cvKeywords = Array.isArray(profile.keywords) ? profile.keywords.map(String) : cvSkills;
+  const keywords = mergeStringLists(existing.profile_keywords, cvKeywords, 12);
+
+  const cvLocations = Array.isArray(profile.preferred_locations)
+    ? profile.preferred_locations.map(String)
+    : [];
+  const locations = mergeStringLists(existing.preferred_locations, cvLocations, 8);
+
+  // Prefer keeping a manual summary if present and CV didn't produce one
+  const summary =
+    profile.summary ||
+    existing.profile_summary ||
+    null;
+  const seniority = profile.seniority || existing.profile_seniority || null;
+
+  await db.query(
+    `
+    UPDATE users SET
+      preferred_categories = $1,
+      preferred_locations = $2,
+      skills = $3,
+      profile_keywords = $4,
+      profile_summary = $5,
+      profile_seniority = $6,
+      profile_status = $7,
+      profiled_at = NOW()
+    WHERE id = $8
+    `,
+    [
+      categoryIds.length ? categoryIds : null,
+      locations.length ? locations : null,
+      skills.length ? skills : null,
+      keywords.length ? keywords : null,
+      summary,
+      seniority,
+      options.status || 'pending_confirm',
+      userId,
+    ]
+  );
+}
 
 module.exports = router;

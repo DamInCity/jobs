@@ -110,9 +110,22 @@ router.post('/jobs', asyncHandler(async (req, res) => {
     }
   }
 
+  // Notify subscribers when new jobs landed (same as post-scrape path)
+  let alerts = null;
+  if (results.accepted > 0 && req.body?.notify !== false) {
+    try {
+      const { processAlertsInProcess } = require('../jobs/emailAlerts');
+      await processAlertsInProcess('daily');
+      alerts = { triggered: true, frequency: 'daily' };
+    } catch (error) {
+      console.error('⚠️ Alert notifications after ingest failed:', error.message);
+      alerts = { triggered: false, error: error.message };
+    }
+  }
+
   res.status(results.accepted > 0 ? 201 : 200).json({
     success: true,
-    data: results,
+    data: { ...results, alerts },
   });
 }));
 

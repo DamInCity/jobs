@@ -52,6 +52,12 @@ const config = {
     apiKey: process.env.INGEST_API_KEY || '',
   },
 
+  // SpaceXAI / xAI for optional CV LLM profiling
+  xai: {
+    apiKey: process.env.XAI_API_KEY || '',
+    model: process.env.XAI_MODEL || 'grok-4.5',
+  },
+
   scrapers: {
     enableHtml: process.env.ENABLE_HTML_SCRAPERS === 'true',
   },

@@ -41,10 +41,13 @@ npm run alerts:force   # send digests now
 
 ## User flow
 
-1. Sign in → open `/alerts`.
-2. Create an alert (pick category / location / remote|hybrid|onsite).
-3. Click **Link Telegram** → complete `/start` in the bot.
-4. When matching jobs appear (scrape or manual), the user gets a chat digest.
+1. **Sign up** (optional Telegram username for contact) → redirected to `/alerts?onboarding=1`.
+2. **Upload CV** → system builds a skill profile (categories + skills) and a “My profile” alert.
+3. **Confirm profile** on the alerts page (or edit preferences).
+4. Click **Link Telegram** → complete `/start` in the bot (chat ID is required for delivery; username alone is not enough).
+5. When matching jobs appear (scrape, n8n ingest, or `alerts:force`), the user gets a chat digest.
+
+Manual path still works: create a category alert without a CV.
 
 Bot commands after linking:
 

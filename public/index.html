@@ -2,62 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Find your next career opportunity. Browse curated job listings from top companies.">
-  <meta name="keywords" content="jobs, careers, employment, hiring, job search">
-  <title>JobsHub - Find Your Dream Job</title>
-  
-  <!-- Fonts -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Discover work worth waking up for. Curated opportunities from great companies — updated daily.">
+  <meta name="keywords" content="jobs, careers, employment, hiring, job search, remote jobs">
+  <meta name="theme-color" content="#F6F4F1">
+  <title>JobsHub — Find work worth waking up for</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <!-- Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  
-  <!-- Styles -->
   <link rel="stylesheet" href="/css/main.css">
-  
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>">
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23FF4F5E'/><text x='50' y='68' text-anchor='middle' font-size='52' font-family='system-ui' font-weight='800' fill='white'>J</text></svg>">
 </head>
-<body>
+<body class="has-bottom-nav">
   <!-- Header -->
-  <header class="header">
+  <header class="header" id="siteHeader">
     <div class="container">
-      <nav class="nav">
+      <nav class="nav" aria-label="Primary">
         <a href="/" class="logo">
-          <span class="logo-icon">💼</span>
-          <span class="logo-text">JobsHub</span>
+          <span class="logo-mark" aria-hidden="true">J</span>
+          <span class="logo-text">Jobs<span>Hub</span></span>
         </a>
-        
+
         <div class="nav-links">
           <a href="/" class="nav-link active" data-nav="jobs">Jobs</a>
-          <a href="/categories" class="nav-link" data-nav="categories">Categories</a>
+          <a href="/categories" class="nav-link" data-nav="categories">Explore</a>
+          <a href="/alerts" class="nav-link" data-nav="alerts">Alerts</a>
           <a href="/about" class="nav-link" data-nav="about">About</a>
         </div>
-        
+
         <div class="nav-actions">
           <div class="auth-buttons" id="authButtons">
-            <a href="/login" class="btn btn-ghost">Sign In</a>
-            <a href="/register" class="btn btn-primary">Sign Up</a>
+            <a href="/login" class="btn btn-ghost">Sign in</a>
+            <a href="/register" class="btn btn-primary">Get started</a>
           </div>
           <div class="user-menu hidden" id="userMenu">
-            <button class="user-menu-btn" id="userMenuBtn">
-              <i class="fas fa-user-circle"></i>
+            <button class="user-menu-btn" id="userMenuBtn" type="button" aria-expanded="false" aria-haspopup="true">
+              <span class="user-avatar" id="userAvatar">U</span>
               <span id="userName">User</span>
-              <i class="fas fa-chevron-down"></i>
+              <i class="fas fa-chevron-down" style="font-size:0.65rem;opacity:0.5"></i>
             </button>
-            <div class="user-dropdown" id="userDropdown">
-              <a href="/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-              <a href="/saved-jobs"><i class="fas fa-bookmark"></i> Saved Jobs</a>
-              <a href="/alerts"><i class="fas fa-bell"></i> Job Alerts</a>
-              <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+            <div class="user-dropdown" id="userDropdown" role="menu">
+              <a href="/alerts" role="menuitem"><i class="fas fa-bell"></i> Your alerts</a>
+              <a href="/alerts" role="menuitem"><i class="fas fa-bookmark"></i> Your shortlist</a>
+              <a href="/profile" role="menuitem"><i class="fas fa-user"></i> Profile</a>
               <hr>
-              <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+              <a href="#" id="logoutBtn" role="menuitem"><i class="fas fa-sign-out-alt"></i> Sign out</a>
             </div>
           </div>
-          <button class="mobile-menu-btn" id="mobileMenuBtn">
+          <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu">
             <i class="fas fa-bars"></i>
           </button>
         </div>
@@ -66,93 +61,193 @@
   </header>
 
   <!-- Mobile Menu -->
-  <div class="mobile-menu hidden" id="mobileMenu">
+  <div class="mobile-menu" id="mobileMenu">
     <a href="/" class="mobile-nav-link">Jobs</a>
-    <a href="/categories" class="mobile-nav-link">Categories</a>
+    <a href="/categories" class="mobile-nav-link">Explore</a>
+    <a href="/alerts" class="mobile-nav-link">Alerts</a>
     <a href="/about" class="mobile-nav-link">About</a>
-    <hr>
+    <hr style="border:none;border-top:1px solid var(--border);margin:0.5rem 0">
     <div class="mobile-auth" id="mobileAuth">
-      <a href="/login" class="btn btn-ghost btn-block">Sign In</a>
-      <a href="/register" class="btn btn-primary btn-block">Sign Up</a>
+      <a href="/login" class="btn btn-ghost btn-block">Sign in</a>
+      <a href="/register" class="btn btn-primary btn-block">Get started</a>
     </div>
   </div>
 
-  <!-- Main Content -->
   <main id="app">
-    <!-- Hero Section -->
+    <!-- Hero -->
     <section class="hero">
+      <div class="hero-bg-shapes" aria-hidden="true">
+        <div class="hero-blob hero-blob-1"></div>
+        <div class="hero-blob hero-blob-2"></div>
+      </div>
+
       <div class="container">
-        <h1 class="hero-title">Find Your Dream Job</h1>
-        <p class="hero-subtitle">Discover opportunities from top companies. Curated listings updated daily.</p>
-        
-        <!-- Search Box -->
-        <div class="search-box">
-          <div class="search-input-group">
-            <i class="fas fa-search"></i>
-            <input type="text" id="searchInput" placeholder="Job title, company, or keywords..." class="search-input">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <div class="hero-eyebrow">
+              <span class="hero-eyebrow-dot"><i class="fas fa-bolt"></i></span>
+              Fresh roles added every day
+            </div>
+
+            <h1 class="hero-title">Find work worth <em>waking up for</em></h1>
+            <p class="hero-subtitle">
+              Curated opportunities from real companies — skip the noise, discover roles that actually fit.
+            </p>
+
+            <div class="search-box" role="search">
+              <div class="search-input-group">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                <input type="text" id="searchInput" placeholder="Role, skill, or company…" class="search-input" autocomplete="off">
+              </div>
+              <div class="search-input-group">
+                <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                <input type="text" id="locationInput" placeholder="Anywhere" class="search-input" autocomplete="off">
+              </div>
+              <button class="btn btn-primary btn-search" id="searchBtn" type="button">
+                <i class="fas fa-arrow-right"></i>
+                <span>Explore</span>
+              </button>
+            </div>
+
+            <div class="quick-filters" role="group" aria-label="Work style">
+              <button class="quick-filter active" type="button" data-filter="all">All roles</button>
+              <button class="quick-filter" type="button" data-filter="remote">Remote</button>
+              <button class="quick-filter" type="button" data-filter="hybrid">Hybrid</button>
+              <button class="quick-filter" type="button" data-filter="onsite">On-site</button>
+            </div>
+
+            <div class="hero-stats">
+              <div class="hero-stat">
+                <span class="hero-stat-value" id="statJobs">—</span>
+                <span class="hero-stat-label">Open roles</span>
+              </div>
+              <div class="hero-stat">
+                <span class="hero-stat-value" id="statCompanies">—</span>
+                <span class="hero-stat-label">Companies</span>
+              </div>
+              <div class="hero-stat">
+                <span class="hero-stat-value">Daily</span>
+                <span class="hero-stat-label">Fresh listings</span>
+              </div>
+            </div>
           </div>
-          <div class="search-input-group">
-            <i class="fas fa-map-marker-alt"></i>
-            <input type="text" id="locationInput" placeholder="Location" class="search-input">
+
+          <div class="hero-visual" aria-hidden="true">
+            <div class="hero-image-stack">
+              <div class="hero-img hero-img-main">
+                <img src="/images/hero-collab.jpg" alt="" width="800" height="1000" fetchpriority="high">
+              </div>
+              <div class="hero-img hero-img-secondary">
+                <img src="/images/hero-work.jpg" alt="" width="400" height="400" loading="lazy">
+              </div>
+              <div class="hero-img hero-img-tertiary">
+                <img src="/images/hero-office.jpg" alt="" width="400" height="300" loading="lazy">
+              </div>
+            </div>
+
+            <div class="hero-float-card hero-float-card-1">
+              <div class="hero-float-icon mint"><i class="fas fa-check"></i></div>
+              <div class="hero-float-text">
+                <strong>Matched today</strong>
+                <span>12 roles near you</span>
+              </div>
+            </div>
+            <div class="hero-float-card hero-float-card-2">
+              <div class="hero-float-icon brand"><i class="fas fa-star"></i></div>
+              <div class="hero-float-text">
+                <strong>New this week</strong>
+                <span>High-signal only</span>
+              </div>
+            </div>
           </div>
-          <button class="btn btn-primary btn-search" id="searchBtn">
-            <i class="fas fa-search"></i>
-            <span>Search</span>
-          </button>
-        </div>
-        
-        <!-- Quick Filters -->
-        <div class="quick-filters">
-          <button class="quick-filter active" data-filter="all">All Jobs</button>
-          <button class="quick-filter" data-filter="remote">🌍 Remote</button>
-          <button class="quick-filter" data-filter="hybrid">🏢 Hybrid</button>
-          <button class="quick-filter" data-filter="onsite">📍 On-site</button>
         </div>
       </div>
     </section>
 
-    <!-- Featured Jobs -->
-    <section class="section" id="featuredSection">
+    <!-- Category discovery -->
+    <section class="discovery-strip" id="discoverSection">
+      <div class="container">
+        <div class="section-header" style="margin-bottom: 0.75rem;">
+          <div>
+            <span class="section-eyebrow">Discover</span>
+            <h2 class="section-title">Where do you want to grow?</h2>
+          </div>
+          <a href="/categories" class="section-link">All paths <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="discovery-scroll" id="discoveryChips">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Featured -->
+    <section class="section" id="featuredSection" style="padding-top: 0.5rem;">
       <div class="container">
         <div class="section-header">
-          <h2 class="section-title">
-            <i class="fas fa-star"></i>
-            Featured Jobs
-          </h2>
+          <div>
+            <span class="section-eyebrow">Spotlight</span>
+            <h2 class="section-title">Featured opportunities</h2>
+            <p class="section-subtitle">Hand-picked roles with strong signal — salary, company, and culture that stand out.</p>
+          </div>
         </div>
-        <div class="jobs-grid" id="featuredJobs">
-          <!-- Featured jobs loaded dynamically -->
+        <div class="featured-rail" id="featuredJobs">
+          <!-- Featured jobs -->
         </div>
       </div>
     </section>
 
-    <!-- Main Jobs Section -->
-    <section class="section section-gray">
+    <!-- Mood band -->
+    <section class="section" style="padding-top: 0; padding-bottom: 1rem;">
       <div class="container">
-        <div class="jobs-layout">
-          <!-- Filters Sidebar -->
-          <aside class="filters-sidebar" id="filtersSidebar">
-            <div class="filters-header">
-              <h3>Filters</h3>
-              <button class="btn-text" id="clearFilters">Clear All</button>
+        <div class="mood-band">
+          <div class="mood-band-copy">
+            <h2>Your next chapter starts with one great opportunity</h2>
+            <p>Save roles you love, set smart alerts, and apply when you’re ready — we’ll keep the pipeline warm.</p>
+            <div style="margin-top:0.5rem">
+              <a href="/register" class="btn btn-primary">Create free account</a>
             </div>
-            
-            <!-- Categories Filter -->
+          </div>
+          <div class="mood-band-media">
+            <img src="/images/hero-work.jpg" alt="" width="600" height="400" loading="lazy">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main explore -->
+    <section class="section section-gray" id="exploreSection">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <span class="section-eyebrow">Explore</span>
+            <h2 class="section-title">Opportunities waiting for you</h2>
+          </div>
+        </div>
+
+        <div class="jobs-layout">
+          <aside class="filters-sidebar" id="filtersSidebar" aria-label="Filters">
+            <div class="filters-header">
+              <h3>Refine</h3>
+              <div style="display:flex;align-items:center;gap:0.5rem">
+                <button class="btn-text" id="clearFilters" type="button">Clear all</button>
+                <button class="filters-close" id="filtersClose" type="button" aria-label="Close filters">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+
             <div class="filter-group">
               <h4 class="filter-title">
                 <i class="fas fa-th-large"></i>
                 Categories
               </h4>
-              <div class="filter-options" id="categoryFilters">
-                <!-- Categories loaded dynamically -->
-              </div>
+              <div class="filter-options" id="categoryFilters"></div>
             </div>
-            
-            <!-- Job Type Filter -->
+
             <div class="filter-group">
               <h4 class="filter-title">
                 <i class="fas fa-briefcase"></i>
-                Job Type
+                Work style
               </h4>
               <div class="filter-options">
                 <label class="filter-checkbox">
@@ -172,16 +267,15 @@
                 </label>
               </div>
             </div>
-            
-            <!-- Date Posted Filter -->
+
             <div class="filter-group">
               <h4 class="filter-title">
                 <i class="fas fa-calendar"></i>
-                Date Posted
+                Posted
               </h4>
               <div class="filter-options">
                 <label class="filter-radio">
-                  <input type="radio" name="posted_after" value="">
+                  <input type="radio" name="posted_after" value="" checked>
                   <span class="radiomark"></span>
                   Any time
                 </label>
@@ -207,48 +301,50 @@
                 </label>
               </div>
             </div>
-            
-            <!-- Salary Range Filter -->
+
             <div class="filter-group">
               <h4 class="filter-title">
-                <i class="fas fa-money-bill-wave"></i>
-                Salary Range
+                <i class="fas fa-coins"></i>
+                Salary range
               </h4>
               <div class="salary-inputs">
-                <input type="number" id="salaryMin" placeholder="Min" class="salary-input">
-                <span>-</span>
-                <input type="number" id="salaryMax" placeholder="Max" class="salary-input">
+                <input type="number" id="salaryMin" placeholder="Min" class="salary-input" inputmode="numeric">
+                <span style="color:var(--muted)">–</span>
+                <input type="number" id="salaryMax" placeholder="Max" class="salary-input" inputmode="numeric">
               </div>
             </div>
-            
-            <button class="btn btn-primary btn-block" id="applyFilters">Apply Filters</button>
+
+            <button class="btn btn-primary btn-block" id="applyFilters" type="button">Show matches</button>
           </aside>
-          
-          <!-- Jobs List -->
+
+          <div class="filters-backdrop" id="filtersBackdrop"></div>
+
           <div class="jobs-main">
             <div class="jobs-header">
               <div class="jobs-count">
-                <span id="jobsCount">0</span> jobs found
+                <span id="jobsCount">0</span> opportunities
               </div>
-              <div class="jobs-sort">
-                <label>Sort by:</label>
-                <select id="sortSelect" class="sort-select">
-                  <option value="posted_date">Most Recent</option>
-                  <option value="salary">Highest Salary</option>
-                  <option value="views">Most Viewed</option>
-                  <option value="title">Title A-Z</option>
-                </select>
+              <div class="jobs-header-actions">
+                <button class="mobile-filter-btn" id="openFiltersBtn" type="button">
+                  <i class="fas fa-sliders-h"></i> Filters
+                </button>
+                <div class="jobs-sort">
+                  <label for="sortSelect" class="sr-only">Sort by</label>
+                  <select id="sortSelect" class="sort-select">
+                    <option value="posted_date">Most recent</option>
+                    <option value="salary">Highest salary</option>
+                    <option value="views">Most viewed</option>
+                    <option value="title">Title A–Z</option>
+                  </select>
+                </div>
               </div>
             </div>
-            
-            <div class="jobs-list" id="jobsList">
-              <!-- Jobs loaded dynamically -->
+
+            <div class="jobs-list" id="jobsList" aria-live="polite">
+              <!-- Jobs -->
             </div>
-            
-            <!-- Pagination -->
-            <div class="pagination" id="pagination">
-              <!-- Pagination loaded dynamically -->
-            </div>
+
+            <div class="pagination" id="pagination"></div>
           </div>
         </div>
       </div>
@@ -256,15 +352,13 @@
   </main>
 
   <!-- Job Detail Modal -->
-  <div class="modal" id="jobModal">
+  <div class="modal" id="jobModal" role="dialog" aria-modal="true" aria-labelledby="jobDetailTitle">
     <div class="modal-overlay" id="modalOverlay"></div>
     <div class="modal-content">
-      <button class="modal-close" id="modalClose">
+      <button class="modal-close" id="modalClose" type="button" aria-label="Close">
         <i class="fas fa-times"></i>
       </button>
-      <div id="jobDetail">
-        <!-- Job details loaded dynamically -->
-      </div>
+      <div id="jobDetail"></div>
     </div>
   </div>
 
@@ -274,53 +368,71 @@
       <div class="footer-grid">
         <div class="footer-section">
           <h3 class="footer-logo">
-            <span class="logo-icon">💼</span>
+            <span class="logo-mark" style="width:32px;height:32px;font-size:0.85rem;border-radius:9px">J</span>
             JobsHub
           </h3>
-          <p>Find your dream job from our curated list of opportunities from top companies.</p>
+          <p>A smarter way to discover work that feels right — curated listings, clear details, zero noise.</p>
         </div>
-        
+
         <div class="footer-section">
-          <h4>For Job Seekers</h4>
+          <h4>For you</h4>
           <ul>
-            <li><a href="/">Browse Jobs</a></li>
-            <li><a href="/categories">Categories</a></li>
-            <li><a href="/saved-jobs">Saved Jobs</a></li>
-            <li><a href="/alerts">Job Alerts</a></li>
+            <li><a href="/">Browse jobs</a></li>
+            <li><a href="/categories">Explore paths</a></li>
+            <li><a href="/alerts">Job alerts</a></li>
+            <li><a href="/register">Create account</a></li>
           </ul>
         </div>
-        
+
         <div class="footer-section">
           <h4>Company</h4>
           <ul>
-            <li><a href="/about">About Us</a></li>
-            <li><a href="/contact">Contact</a></li>
-            <li><a href="/faq">FAQ</a></li>
-            <li><a href="/blog">Blog</a></li>
+            <li><a href="/about">About us</a></li>
+            <li><a href="/login">Sign in</a></li>
           </ul>
         </div>
-        
+
         <div class="footer-section">
           <h4>Legal</h4>
           <ul>
-            <li><a href="/privacy">Privacy Policy</a></li>
-            <li><a href="/terms">Terms of Service</a></li>
+            <li><a href="/privacy">Privacy</a></li>
+            <li><a href="/terms">Terms</a></li>
           </ul>
         </div>
       </div>
-      
+
       <div class="footer-bottom">
-        <p>&copy; 2026 JobsHub. All rights reserved.</p>
+        <p>&copy; 2026 JobsHub. Built for people who care about their next move.</p>
         <div class="social-links">
           <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
           <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
-          <a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
         </div>
       </div>
     </div>
   </footer>
 
-  <!-- Scripts -->
+  <!-- Mobile bottom nav -->
+  <nav class="bottom-nav" aria-label="Mobile">
+    <div class="bottom-nav-inner">
+      <a href="/" class="bottom-nav-item active">
+        <i class="fas fa-briefcase"></i>
+        Jobs
+      </a>
+      <a href="/categories" class="bottom-nav-item">
+        <i class="fas fa-compass"></i>
+        Explore
+      </a>
+      <button type="button" class="bottom-nav-item" id="bottomFilterBtn">
+        <i class="fas fa-sliders-h"></i>
+        Filters
+      </button>
+      <a href="/alerts" class="bottom-nav-item">
+        <i class="fas fa-bell"></i>
+        Alerts
+      </a>
+    </div>
+  </nav>
+
   <script src="/js/main.js"></script>
 </body>
 </html>

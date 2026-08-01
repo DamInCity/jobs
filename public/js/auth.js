@@ -86,15 +86,23 @@ async function handleRegister(e) {
 
   setLoading(submitBtn, true);
 
+  const telegramRaw = form.telegram_username?.value?.trim() || form.telegramUsername?.value?.trim() || '';
+  const telegram_username = telegramRaw.replace(/^@/, '') || undefined;
+
   try {
+    const body = { name, email, password };
+    if (telegram_username) body.telegram_username = telegram_username;
+
     const response = await api('/users/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify(body),
     });
 
     setAuthSession(response.data.token, response.data.user);
-    showNotification('Account created successfully!', 'success');
-    window.location.href = getRedirectTarget();
+    showNotification('Account created! Upload your CV to get matched jobs.', 'success');
+    // Default onboarding path unless caller specified another redirect
+    const redirect = getRedirectTarget();
+    window.location.href = redirect === '/' ? '/alerts?onboarding=1' : redirect;
   } catch (error) {
     let message = error.message || 'Registration failed';
     if (error.errors?.length) {

@@ -56,6 +56,13 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@jobswebsite.com}
       N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-}
+      INGEST_API_KEY: ${INGEST_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      XAI_MODEL: ${XAI_MODEL:-grok-4.5}
+      CV_UPLOAD_DIR: ${CV_UPLOAD_DIR:-/app/uploads/cvs}
+      MAX_CV_BYTES: ${MAX_CV_BYTES:-5242880}
+    volumes:
+      - cv_uploads:/app/uploads/cvs
     ports:
       - "3000:3000"
     depends_on:
@@ -149,6 +156,7 @@ services:
 
 volumes:
   postgres_data:
+  cv_uploads:
 
 networks:
   jobs_network:

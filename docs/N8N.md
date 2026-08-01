@@ -36,8 +36,10 @@ There is **no free official Google for Jobs API**. Realistic options:
 4. Ingest            POST https://jobs.usseo.one/api/ingest/jobs
                      Header: X-Ingest-Key: $INGEST_API_KEY
 
-5. Fan-out           Existing JobsHub alerts (email/Telegram) + optional
-                     N8N_WEBHOOK_URL for WhatsApp / custom routing
+5. Fan-out           After successful ingest (accepted > 0), JobsHub runs
+                     daily alert matching (email/Telegram) automatically.
+                     Optional N8N_WEBHOOK_URL for WhatsApp / custom routing.
+                     Pass `notify: false` in the ingest body to skip fan-out.
 ```
 
 Shared title/location matrix lives in:
@@ -122,11 +124,25 @@ When user alerts match, JobsHub POSTs a JSON payload (jobs + user channel hints)
 See `docs/n8n/job-google-ingest.workflow.json`.
 
 1. Import into n8n  
-2. Set credential / header `X-Ingest-Key`  
-3. Replace the “Discovery” placeholder with:
-   - SerpAPI Google Jobs node, **or**
-   - HTTP Request to a board list page + HTML extract  
-4. Activate schedule  
+2. Set env `JOBSHUB_INGEST_KEY` = your `INGEST_API_KEY` (or hardcode header carefully)  
+3. Replace the **Placeholder map** node with real discovery:
+   - SerpAPI / DataForSEO / ValueSERP **Google Jobs** using `searchQuery`, **or**
+   - HTTP Request to a public board list page + HTML extract  
+4. Ensure preprocess maps: `title`, `company_name`, `external_link`, `location`, `description`, `category`  
+5. Activate schedule (default every 6 hours)  
+6. Confirm JobsHub has `INGEST_API_KEY` set (compose passes it into the app container)  
+
+When jobs are accepted, JobsHub immediately runs preference-based alerts so Telegram users get fresh matches without waiting for the daily cron.
+
+### Minimal checklist for “always up to date”
+
+| Step | Done when |
+|------|-----------|
+| `INGEST_API_KEY` in JobsHub `.env` + compose | `curl` preprocess returns 200 |
+| n8n workflow imported + key set | Test execution hits ingest |
+| Discovery not placeholder | Real employers/URLs in DB (`source=n8n-google`) |
+| Users have profile or alerts | CV profile or manual category alert |
+| Telegram bot token + linked users | Digests arrive in chat | 
 
 ---
 

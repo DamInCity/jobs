@@ -97,6 +97,12 @@ const userValidation = {
       .optional()
       .trim()
       .isLength({ min: 2, max: 255 }).withMessage('Name must be between 2 and 255 characters'),
+    body('telegram_username')
+      .optional({ values: 'falsy' })
+      .trim()
+      .customSanitizer((v) => String(v || '').replace(/^@/, ''))
+      .isLength({ min: 5, max: 64 }).withMessage('Telegram username must be 5–64 characters')
+      .matches(/^[A-Za-z0-9_]+$/).withMessage('Telegram username may only contain letters, numbers, and underscores'),
     validate,
   ],
   login: [

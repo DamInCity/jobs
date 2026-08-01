@@ -1,11 +1,6 @@
 /**
- * JobsHub - Main JavaScript Application
- * Handles all client-side functionality for the jobs website
+ * JobsHub — Premium career discovery client
  */
-
-// ============================================
-// CONFIGURATION & STATE
-// ============================================
 
 const API_BASE = '/api';
 
@@ -24,42 +19,59 @@ const state = {
   },
   sort: 'posted_date',
   order: 'desc',
+  savedIds: new Set(),
 };
 
 // ============================================
-// API HELPERS
+// API
 // ============================================
 
 async function api(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
-  const config = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(state.token && { Authorization: `Bearer ${state.token}` }),
-    },
-    ...options,
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(state.token && { Authorization: `Bearer ${state.token}` }),
+    ...(options.headers || {}),
   };
 
+  const config = { ...options, headers };
+  const response = await fetch(url, config);
+
+  let data;
   try {
-    const response = await fetch(url, config);
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Something went wrong');
-    }
-
-    return data;
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
+    data = await response.json();
+  } catch {
+    data = { message: 'Invalid server response' };
   }
+
+  if (!response.ok) {
+    const message =
+      data.message ||
+      (Array.isArray(data.errors) && data.errors[0]?.message) ||
+      'Something went wrong';
+    const err = new Error(message);
+    err.status = response.status;
+    throw err;
+  }
+
+  return data;
 }
 
 // ============================================
-// UTILITY FUNCTIONS
+// UTILITIES
 // ============================================
 
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function formatDate(dateString) {
+  if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
   const diffTime = Math.abs(now - date);
@@ -67,71 +79,91 @@ function formatDate(dateString) {
 
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function formatSalary(min, max, currency = 'KES', period = 'monthly') {
   const formatter = new Intl.NumberFormat('en-KE', {
     style: 'currency',
-    currency: currency,
+    currency: currency || 'KES',
     maximumFractionDigits: 0,
   });
 
   if (min && max) {
-    return `${formatter.format(min)} - ${formatter.format(max)}/${period}`;
-  } else if (min) {
-    return `From ${formatter.format(min)}/${period}`;
-  } else if (max) {
-    return `Up to ${formatter.format(max)}/${period}`;
+    return `${formatter.format(min)} – ${formatter.format(max)}`;
   }
-  return 'Salary not specified';
+  if (min) return `From ${formatter.format(min)}`;
+  if (max) return `Up to ${formatter.format(max)}`;
+  return null;
 }
 
 function getJobTypeLabel(type) {
   const labels = {
-    remote: '🌍 Remote',
-    hybrid: '🏢 Hybrid',
-    onsite: '📍 On-site',
+    remote: 'Remote',
+    hybrid: 'Hybrid',
+    onsite: 'On-site',
   };
-  return labels[type] || type;
+  return labels[type] || type || 'On-site';
+}
+
+function logoHue(name) {
+  if (!name) return 0;
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i) * (i + 1)) % 6;
+  return h;
 }
 
 function showNotification(message, type = 'info') {
-  // Create notification element
-  const notification = document.createElement('div');
-  notification.className = `alert alert-${type}`;
-  notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
-  notification.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 1000; min-width: 300px; animation: slideIn 0.3s ease;';
+  let host = document.querySelector('.toast-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.className = 'toast-host';
+    document.body.appendChild(host);
+  }
 
-  document.body.appendChild(notification);
+  const icons = {
+    success: 'check-circle',
+    error: 'exclamation-circle',
+    warning: 'exclamation-triangle',
+    info: 'info-circle',
+  };
+
+  const el = document.createElement('div');
+  el.className = `alert alert-${type}`;
+  el.innerHTML = `<i class="fas fa-${icons[type] || icons.info}"></i> <span>${escapeHtml(message)}</span>`;
+  host.appendChild(el);
 
   setTimeout(() => {
-    notification.remove();
-  }, 3000);
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(12px)';
+    el.style.transition = 'all 0.25s ease';
+    setTimeout(() => el.remove(), 250);
+  }, 3200);
 }
 
 // ============================================
-// AUTHENTICATION
+// AUTH
 // ============================================
 
 async function checkAuth() {
   if (!state.token) {
     updateAuthUI(false);
-    return;
+    return false;
   }
 
   try {
     const response = await api('/users/profile');
     state.user = response.data;
     updateAuthUI(true);
-  } catch (error) {
-    // Token invalid or expired
+    return true;
+  } catch {
     localStorage.removeItem('token');
     state.token = null;
     state.user = null;
     updateAuthUI(false);
+    return false;
   }
 }
 
@@ -139,16 +171,31 @@ function updateAuthUI(isLoggedIn) {
   const authButtons = document.getElementById('authButtons');
   const userMenu = document.getElementById('userMenu');
   const userName = document.getElementById('userName');
+  const userAvatar = document.getElementById('userAvatar');
+  const mobileAuth = document.getElementById('mobileAuth');
 
   if (isLoggedIn && state.user) {
     authButtons?.classList.add('hidden');
     userMenu?.classList.remove('hidden');
-    if (userName) {
-      userName.textContent = state.user.name || state.user.email.split('@')[0];
+    const display = state.user.name || state.user.email?.split('@')[0] || 'You';
+    if (userName) userName.textContent = display;
+    if (userAvatar) userAvatar.textContent = display.charAt(0).toUpperCase();
+    if (mobileAuth) {
+      mobileAuth.innerHTML = `
+        <a href="/alerts" class="btn btn-ghost btn-block">Your alerts</a>
+        <button type="button" class="btn btn-primary btn-block" id="mobileLogoutBtn">Sign out</button>
+      `;
+      document.getElementById('mobileLogoutBtn')?.addEventListener('click', logout);
     }
   } else {
     authButtons?.classList.remove('hidden');
     userMenu?.classList.add('hidden');
+    if (mobileAuth) {
+      mobileAuth.innerHTML = `
+        <a href="/login" class="btn btn-ghost btn-block">Sign in</a>
+        <a href="/register" class="btn btn-primary btn-block">Get started</a>
+      `;
+    }
   }
 }
 
@@ -157,79 +204,131 @@ function logout() {
   state.token = null;
   state.user = null;
   updateAuthUI(false);
-  showNotification('You have been logged out', 'success');
+  showNotification('Signed out — see you soon', 'success');
 }
 
 // ============================================
-// JOB RENDERING
+// JOB CARDS
 // ============================================
 
-function createJobCard(job, featured = false) {
+function createJobCard(job) {
   const jobTypeClass = job.job_type || 'onsite';
-  const logoPlaceholder = job.company_name.charAt(0).toUpperCase();
+  const logoPlaceholder = escapeHtml((job.company_name || '?').charAt(0).toUpperCase());
+  const hue = logoHue(job.company_name);
+  const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency, job.salary_period);
+  const title = escapeHtml(job.title);
+  const company = escapeHtml(job.company_name);
+  const location = escapeHtml(job.location || 'Location flexible');
+  const category = job.category_name ? escapeHtml(job.category_name) : '';
+  const isSaved = state.savedIds.has(String(job.id));
+
+  const logoHtml = job.company_logo_url
+    ? `<img src="${escapeHtml(job.company_logo_url)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'job-logo-placeholder hue-${hue}',textContent:'${logoPlaceholder}'}))">`
+    : `<span class="job-logo-placeholder hue-${hue}">${logoPlaceholder}</span>`;
 
   return `
-    <article class="job-card ${job.is_featured ? 'featured' : ''}" data-job-id="${job.id}" onclick="openJobModal('${job.id}')">
+    <article class="job-card ${job.is_featured ? 'featured' : ''}" data-job-id="${escapeHtml(job.id)}" tabindex="0" role="button" aria-label="${title} at ${company}">
       <div class="job-card-header">
-        <div class="job-logo">
-          ${job.company_logo_url 
-            ? `<img src="${job.company_logo_url}" alt="${job.company_name} logo" onerror="this.parentElement.innerHTML='<span class=\\'job-logo-placeholder\\'>${logoPlaceholder}</span>'">` 
-            : `<span class="job-logo-placeholder">${logoPlaceholder}</span>`
-          }
-        </div>
+        <div class="job-logo">${logoHtml}</div>
         <div class="job-info">
-          <h3 class="job-title">${job.title}</h3>
+          <h3 class="job-title">${title}</h3>
           <p class="job-company">
-            <i class="fas fa-building"></i>
-            ${job.company_name}
+            <i class="fas fa-building" aria-hidden="true"></i>
+            ${company}
           </p>
         </div>
+        <button type="button" class="job-save-btn ${isSaved ? 'saved' : ''}" data-save-job="${escapeHtml(job.id)}" aria-label="Save job" title="Save">
+          <i class="${isSaved ? 'fas' : 'far'} fa-bookmark"></i>
+        </button>
       </div>
-      
+
       <div class="job-meta">
         <span class="job-meta-item">
-          <i class="fas fa-map-marker-alt"></i>
-          ${job.location}
+          <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+          ${location}
         </span>
-        ${job.category_name ? `
+        ${category ? `
           <span class="job-meta-item">
-            <i class="fas fa-folder"></i>
-            ${job.category_name}
+            <i class="fas fa-layer-group" aria-hidden="true"></i>
+            ${category}
           </span>
         ` : ''}
       </div>
-      
+
       <div class="job-tags">
         <span class="job-tag ${jobTypeClass}">${getJobTypeLabel(job.job_type)}</span>
-        ${job.is_featured ? '<span class="job-tag featured">⭐ Featured</span>' : ''}
+        ${job.is_featured ? '<span class="job-tag featured">Featured</span>' : ''}
         ${job.is_new ? '<span class="job-tag new">New</span>' : ''}
-        ${job.expiring_soon ? '<span class="job-tag expiring">Expiring Soon</span>' : ''}
+        ${job.expiring_soon ? '<span class="job-tag expiring">Closing soon</span>' : ''}
       </div>
-      
+
       <div class="job-footer">
-        <span class="job-salary">${formatSalary(job.salary_min, job.salary_max, job.salary_currency, job.salary_period)}</span>
+        <span class="job-salary ${salary ? '' : 'is-unspecified'}">${salary || 'Salary on request'}</span>
         <span class="job-posted">${formatDate(job.posted_date)}</span>
+        <span class="job-card-cta">View role <i class="fas fa-arrow-right"></i></span>
       </div>
     </article>
   `;
+}
+
+function skeletonCards(count = 6) {
+  return Array.from({ length: count }, () => `
+    <div class="job-card-skeleton" aria-hidden="true">
+      <div style="display:flex;gap:1rem;margin-bottom:1rem">
+        <div class="skeleton skeleton-logo"></div>
+        <div style="flex:1">
+          <div class="skeleton skeleton-line h-title"></div>
+          <div class="skeleton skeleton-line w-40"></div>
+        </div>
+      </div>
+      <div class="skeleton skeleton-line w-55"></div>
+      <div class="skeleton skeleton-line w-30" style="margin-top:0.75rem"></div>
+    </div>
+  `).join('');
 }
 
 function renderJobs(jobs, containerId = 'jobsList') {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  if (jobs.length === 0) {
+  if (!jobs || jobs.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">📭</div>
-        <h3>No jobs found</h3>
-        <p>Try adjusting your search filters or check back later for new opportunities.</p>
+        <div class="empty-state-icon"><i class="fas fa-compass"></i></div>
+        <h3>Nothing perfect yet</h3>
+        <p>Try widening your search — your next opportunity might be one filter away.</p>
+        <button type="button" class="btn btn-primary" id="emptyClearBtn">Reset filters</button>
       </div>
     `;
+    document.getElementById('emptyClearBtn')?.addEventListener('click', clearFilters);
     return;
   }
 
-  container.innerHTML = jobs.map(job => createJobCard(job)).join('');
+  container.innerHTML = jobs.map((job) => createJobCard(job)).join('');
+  bindJobCardEvents(container);
+}
+
+function bindJobCardEvents(container) {
+  container.querySelectorAll('.job-card').forEach((card) => {
+    const open = () => openJobModal(card.dataset.jobId);
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('[data-save-job]')) return;
+      open();
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        open();
+      }
+    });
+  });
+
+  container.querySelectorAll('[data-save-job]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveJob(btn.dataset.saveJob, btn);
+    });
+  });
 }
 
 function renderPagination(pagination) {
@@ -238,51 +337,47 @@ function renderPagination(pagination) {
 
   const { page, totalPages, hasNext, hasPrev } = pagination;
 
-  if (totalPages <= 1) {
+  if (!totalPages || totalPages <= 1) {
     container.innerHTML = '';
     return;
   }
 
   let html = '';
 
-  // Previous button
-  html += `<button class="pagination-btn" ${!hasPrev ? 'disabled' : ''} onclick="changePage(${page - 1})">
+  html += `<button class="pagination-btn" type="button" ${!hasPrev ? 'disabled' : ''} data-page="${page - 1}" aria-label="Previous">
     <i class="fas fa-chevron-left"></i>
   </button>`;
 
-  // Page numbers
   const maxVisible = 5;
   let start = Math.max(1, page - Math.floor(maxVisible / 2));
   let end = Math.min(totalPages, start + maxVisible - 1);
-
-  if (end - start < maxVisible - 1) {
-    start = Math.max(1, end - maxVisible + 1);
-  }
+  if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
 
   if (start > 1) {
-    html += `<button class="pagination-btn" onclick="changePage(1)">1</button>`;
-    if (start > 2) {
-      html += `<span class="pagination-btn" style="pointer-events: none;">...</span>`;
-    }
+    html += `<button class="pagination-btn" type="button" data-page="1">1</button>`;
+    if (start > 2) html += `<span class="pagination-btn" style="pointer-events:none;border:none;background:transparent">…</span>`;
   }
 
   for (let i = start; i <= end; i++) {
-    html += `<button class="pagination-btn ${i === page ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    html += `<button class="pagination-btn ${i === page ? 'active' : ''}" type="button" data-page="${i}">${i}</button>`;
   }
 
   if (end < totalPages) {
-    if (end < totalPages - 1) {
-      html += `<span class="pagination-btn" style="pointer-events: none;">...</span>`;
-    }
-    html += `<button class="pagination-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
+    if (end < totalPages - 1) html += `<span class="pagination-btn" style="pointer-events:none;border:none;background:transparent">…</span>`;
+    html += `<button class="pagination-btn" type="button" data-page="${totalPages}">${totalPages}</button>`;
   }
 
-  // Next button
-  html += `<button class="pagination-btn" ${!hasNext ? 'disabled' : ''} onclick="changePage(${page + 1})">
+  html += `<button class="pagination-btn" type="button" ${!hasNext ? 'disabled' : ''} data-page="${page + 1}" aria-label="Next">
     <i class="fas fa-chevron-right"></i>
   </button>`;
 
   container.innerHTML = html;
+  container.querySelectorAll('[data-page]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const p = parseInt(btn.dataset.page, 10);
+      if (!Number.isNaN(p)) changePage(p);
+    });
+  });
 }
 
 // ============================================
@@ -290,24 +385,33 @@ function renderPagination(pagination) {
 // ============================================
 
 async function loadFeaturedJobs() {
+  const container = document.getElementById('featuredJobs');
+  if (!container) return;
+
+  container.innerHTML = skeletonCards(3);
+
   try {
     const response = await api('/jobs/featured');
-    const container = document.getElementById('featuredJobs');
-    
-    if (response.data.length === 0) {
+    const jobs = response.data || [];
+
+    if (jobs.length === 0) {
       document.getElementById('featuredSection')?.classList.add('hidden');
       return;
     }
 
-    container.innerHTML = response.data.map(job => createJobCard(job, true)).join('');
+    container.innerHTML = jobs.map((job) => createJobCard(job)).join('');
+    bindJobCardEvents(container);
   } catch (error) {
     console.error('Failed to load featured jobs:', error);
+    document.getElementById('featuredSection')?.classList.add('hidden');
   }
 }
 
 async function loadJobs() {
+  const list = document.getElementById('jobsList');
+  if (list) list.innerHTML = skeletonCards(5);
+
   try {
-    // Build query string from filters
     const params = new URLSearchParams();
     params.append('page', state.currentPage);
     params.append('sort', state.sort);
@@ -322,17 +426,32 @@ async function loadJobs() {
     if (state.filters.salary_max) params.append('salary_max', state.filters.salary_max);
 
     const response = await api(`/jobs?${params.toString()}`);
-    
-    renderJobs(response.data.jobs);
-    renderPagination(response.data.pagination);
+    const jobs = response.data?.jobs || response.data || [];
+    const pagination = response.data?.pagination || { page: 1, totalPages: 1, total: jobs.length };
 
-    // Update job count
+    renderJobs(jobs);
+    renderPagination(pagination);
+
     const jobsCount = document.getElementById('jobsCount');
-    if (jobsCount) {
-      jobsCount.textContent = response.data.pagination.total;
+    if (jobsCount) jobsCount.textContent = pagination.total ?? jobs.length;
+
+    const statJobs = document.getElementById('statJobs');
+    if (statJobs && !state.filters.search && !state.filters.location && !state.filters.category) {
+      const n = pagination.total ?? jobs.length;
+      statJobs.textContent = n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
     }
   } catch (error) {
     console.error('Failed to load jobs:', error);
+    if (list) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fas fa-cloud"></i></div>
+          <h3>Couldn’t load opportunities</h3>
+          <p>Please check your connection and try again.</p>
+          <button type="button" class="btn btn-primary" onclick="loadJobs()">Retry</button>
+        </div>
+      `;
+    }
     showNotification('Failed to load jobs. Please try again.', 'error');
   }
 }
@@ -340,80 +459,149 @@ async function loadJobs() {
 async function loadCategories() {
   try {
     const response = await api('/categories');
-    const container = document.getElementById('categoryFilters');
-    if (!container) return;
+    const categories = response.data || [];
 
-    const selected = state.filters.category;
-    container.innerHTML = response.data.map(cat => {
-      const checked =
-        selected && (selected === cat.id || selected === cat.slug) ? 'checked' : '';
-      return `
-      <label class="filter-checkbox">
-        <input type="checkbox" name="category" value="${cat.slug}" ${checked}>
-        <span class="checkmark"></span>
-        ${cat.name} (${cat.job_count})
-      </label>
-    `;
-    }).join('');
+    // Sidebar filters
+    const container = document.getElementById('categoryFilters');
+    if (container) {
+      const selected = state.filters.category;
+      container.innerHTML = categories
+        .map((cat) => {
+          const checked =
+            selected && (selected === cat.id || selected === cat.slug) ? 'checked' : '';
+          return `
+            <label class="filter-checkbox">
+              <input type="checkbox" name="category" value="${escapeHtml(cat.slug)}" ${checked}>
+              <span class="checkmark"></span>
+              ${escapeHtml(cat.name)}
+              <span style="margin-left:auto;color:var(--muted-2);font-size:0.75rem">${cat.job_count || 0}</span>
+            </label>
+          `;
+        })
+        .join('');
+    }
+
+    // Discovery chips
+    const chips = document.getElementById('discoveryChips');
+    if (chips) {
+      const top = categories.slice(0, 12);
+      chips.innerHTML = top
+        .map((cat) => {
+          const iconMap = {
+            code: 'fa-code',
+            palette: 'fa-palette',
+            megaphone: 'fa-bullhorn',
+            'chart-line': 'fa-chart-line',
+            headset: 'fa-headset',
+            calculator: 'fa-calculator',
+            users: 'fa-users',
+            server: 'fa-server',
+            lightbulb: 'fa-lightbulb',
+            cogs: 'fa-cogs',
+            briefcase: 'fa-briefcase',
+            heartbeat: 'fa-heartbeat',
+          };
+          const icon = iconMap[cat.icon] || 'fa-folder';
+          return `
+            <a href="/?category=${encodeURIComponent(cat.slug)}#exploreSection" class="discovery-chip" data-category="${escapeHtml(cat.slug)}">
+              <span class="discovery-chip-icon"><i class="fas ${icon}"></i></span>
+              ${escapeHtml(cat.name)}
+            </a>
+          `;
+        })
+        .join('');
+
+      chips.querySelectorAll('[data-category]').forEach((chip) => {
+        chip.addEventListener('click', (e) => {
+          // Allow default for new page; if already on home with SPA-like, handle inline
+          if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+            e.preventDefault();
+            state.filters.category = chip.dataset.category;
+            state.currentPage = 1;
+            // Sync sidebar
+            document.querySelectorAll('input[name="category"]').forEach((cb) => {
+              cb.checked = cb.value === state.filters.category;
+            });
+            loadJobs();
+            updateURL();
+            document.getElementById('exploreSection')?.scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      });
+    }
+
+    // Rough company stat from category variety
+    const statCompanies = document.getElementById('statCompanies');
+    if (statCompanies && categories.length) {
+      const estimate = Math.max(categories.reduce((s, c) => s + (Number(c.job_count) || 0), 0), categories.length);
+      // Use category count as proxy if we don't have company count
+      statCompanies.textContent = `${categories.length}+`;
+      // Prefer a nicer number from jobs if available later
+      void estimate;
+    }
   } catch (error) {
     console.error('Failed to load categories:', error);
   }
 }
 
 // ============================================
-// JOB DETAIL MODAL
+// JOB DETAIL
 // ============================================
 
 async function openJobModal(jobId) {
   const modal = document.getElementById('jobModal');
   const jobDetail = document.getElementById('jobDetail');
-  
+  if (!modal || !jobDetail) return;
+
   modal.classList.add('show');
+  document.body.style.overflow = 'hidden';
   jobDetail.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
   try {
-    // Track view
     api(`/jobs/${jobId}/view`, { method: 'POST' }).catch(() => {});
 
     const response = await api(`/jobs/${jobId}`);
-    const job = response.data.job;
+    const job = response.data.job || response.data;
+    const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency, job.salary_period);
+    const hue = logoHue(job.company_name);
+    const letter = escapeHtml((job.company_name || '?').charAt(0).toUpperCase());
+
+    const logoBlock = job.company_logo_url
+      ? `<img src="${escapeHtml(job.company_logo_url)}" alt="">`
+      : `<div class="job-logo-placeholder hue-${hue}" style="width:100%;height:100%;border-radius:inherit;font-size:1.5rem">${letter}</div>`;
 
     jobDetail.innerHTML = `
       <div class="job-detail-header">
-        <div class="job-detail-logo">
-          ${job.company_logo_url 
-            ? `<img src="${job.company_logo_url}" alt="${job.company_name}">`
-            : `<div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 2rem; font-weight: 600; color: var(--gray-500);">${job.company_name.charAt(0)}</div>`
-          }
-        </div>
+        <div class="job-detail-logo">${logoBlock}</div>
         <div class="job-detail-info">
-          <h1>${job.title}</h1>
-          <p class="job-detail-company">${job.company_name}</p>
+          <h1 id="jobDetailTitle">${escapeHtml(job.title)}</h1>
+          <p class="job-detail-company">${escapeHtml(job.company_name)}</p>
           <div class="job-detail-meta">
-            <span class="job-meta-item"><i class="fas fa-map-marker-alt"></i> ${job.location}</span>
+            <span class="job-meta-item"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(job.location || 'Flexible')}</span>
             <span class="job-meta-item"><i class="fas fa-briefcase"></i> ${getJobTypeLabel(job.job_type)}</span>
-            ${job.category_name ? `<span class="job-meta-item"><i class="fas fa-folder"></i> ${job.category_name}</span>` : ''}
+            ${job.category_name ? `<span class="job-meta-item"><i class="fas fa-layer-group"></i> ${escapeHtml(job.category_name)}</span>` : ''}
+            <span class="job-meta-item"><i class="fas fa-clock"></i> ${formatDate(job.posted_date)}</span>
           </div>
         </div>
       </div>
 
-      ${job.salary_min || job.salary_max ? `
+      ${salary ? `
         <div class="job-detail-section">
-          <h2><i class="fas fa-money-bill-wave"></i> Salary</h2>
-          <p class="job-detail-content" style="font-size: 1.25rem; font-weight: 600; color: var(--primary);">
-            ${formatSalary(job.salary_min, job.salary_max, job.salary_currency, job.salary_period)}
+          <h2><i class="fas fa-coins"></i> Compensation</h2>
+          <p class="job-detail-content" style="font-size:1.25rem;font-weight:800;color:var(--mint);letter-spacing:-0.02em">
+            ${salary}${job.salary_period ? ` <span style="font-size:0.85rem;font-weight:600;color:var(--muted)">/ ${escapeHtml(job.salary_period)}</span>` : ''}
           </p>
         </div>
       ` : ''}
 
       <div class="job-detail-section">
-        <h2><i class="fas fa-file-alt"></i> Description</h2>
-        <div class="job-detail-content">${job.description}</div>
+        <h2><i class="fas fa-align-left"></i> About the role</h2>
+        <div class="job-detail-content">${job.description || ''}</div>
       </div>
 
       ${job.requirements ? `
         <div class="job-detail-section">
-          <h2><i class="fas fa-list-check"></i> Requirements</h2>
+          <h2><i class="fas fa-list-check"></i> What you’ll need</h2>
           <div class="job-detail-content">${job.requirements}</div>
         </div>
       ` : ''}
@@ -426,29 +614,39 @@ async function openJobModal(jobId) {
       ` : ''}
 
       <div class="job-detail-actions">
-        <button class="btn btn-outline" onclick="saveJob('${job.id}')">
-          <i class="fas fa-bookmark"></i> Save Job
+        <button class="btn btn-outline" type="button" data-modal-save="${escapeHtml(job.id)}">
+          <i class="far fa-bookmark"></i> Save for later
         </button>
-        <a href="${job.external_link}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-apply" onclick="trackClick('${job.id}')">
-          <i class="fas fa-external-link-alt"></i> Apply on ${job.company_name}
+        <a href="${escapeHtml(job.external_link || '#')}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-apply" data-track-click="${escapeHtml(job.id)}">
+          Apply at ${escapeHtml(job.company_name || 'company')}
+          <i class="fas fa-external-link-alt"></i>
         </a>
       </div>
 
       ${response.data.relatedJobs?.length > 0 ? `
-        <div class="job-detail-section" style="margin-top: var(--space-8);">
-          <h2><i class="fas fa-th-large"></i> Related Jobs</h2>
-          <div class="jobs-grid" style="margin-top: var(--space-4);">
-            ${response.data.relatedJobs.map(job => createJobCard(job)).join('')}
+        <div class="job-detail-section" style="margin-top:2rem">
+          <h2><i class="fas fa-star"></i> Similar roles</h2>
+          <div class="jobs-grid" style="margin-top:1rem" id="relatedJobsGrid">
+            ${response.data.relatedJobs.map((j) => createJobCard(j)).join('')}
           </div>
         </div>
       ` : ''}
     `;
+
+    jobDetail.querySelector('[data-modal-save]')?.addEventListener('click', (e) => {
+      saveJob(e.currentTarget.dataset.modalSave, e.currentTarget);
+    });
+    jobDetail.querySelector('[data-track-click]')?.addEventListener('click', () => {
+      trackClick(job.id);
+    });
+    const related = document.getElementById('relatedJobsGrid');
+    if (related) bindJobCardEvents(related);
   } catch (error) {
     jobDetail.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">❌</div>
-        <h3>Failed to load job</h3>
-        <p>Please try again later.</p>
+        <div class="empty-state-icon"><i class="fas fa-exclamation"></i></div>
+        <h3>Couldn’t open this role</h3>
+        <p>Please try again in a moment.</p>
       </div>
     `;
   }
@@ -456,20 +654,42 @@ async function openJobModal(jobId) {
 
 function closeJobModal() {
   const modal = document.getElementById('jobModal');
-  modal.classList.remove('show');
+  modal?.classList.remove('show');
+  document.body.style.overflow = '';
 }
 
-async function saveJob(jobId) {
+async function saveJob(jobId, btnEl) {
   if (!state.token) {
-    showNotification('Please sign in to save jobs', 'warning');
+    showNotification('Sign in to build your shortlist', 'warning');
+    setTimeout(() => {
+      window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+    }, 800);
     return;
   }
 
   try {
     await api(`/users/saved-jobs/${jobId}`, { method: 'POST' });
-    showNotification('Job saved successfully!', 'success');
+    state.savedIds.add(String(jobId));
+    showNotification('Added to your shortlist', 'success');
+
+    if (btnEl) {
+      btnEl.classList.add('saved');
+      const icon = btnEl.querySelector('i');
+      if (icon) {
+        icon.classList.remove('far');
+        icon.classList.add('fas');
+      }
+      btnEl.animate(
+        [
+          { transform: 'scale(1)' },
+          { transform: 'scale(1.2)' },
+          { transform: 'scale(1)' },
+        ],
+        { duration: 280, easing: 'cubic-bezier(0.34, 1.2, 0.64, 1)' }
+      );
+    }
   } catch (error) {
-    showNotification(error.message || 'Failed to save job', 'error');
+    showNotification(error.message || 'Couldn’t save that role', 'error');
   }
 }
 
@@ -491,12 +711,12 @@ function handleSearch() {
 
   loadJobs();
   updateURL();
+  document.getElementById('exploreSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function handleQuickFilter(filter) {
-  const buttons = document.querySelectorAll('.quick-filter');
-  buttons.forEach(btn => btn.classList.remove('active'));
-  event.target.classList.add('active');
+function handleQuickFilter(filter, btn) {
+  document.querySelectorAll('.quick-filter').forEach((b) => b.classList.remove('active'));
+  btn?.classList.add('active');
 
   if (filter === 'all') {
     state.filters.job_type = [];
@@ -505,33 +725,36 @@ function handleQuickFilter(filter) {
   }
   state.currentPage = 1;
 
+  // Sync sidebar checkboxes
+  document.querySelectorAll('input[name="job_type"]').forEach((cb) => {
+    cb.checked = state.filters.job_type.includes(cb.value);
+  });
+
   loadJobs();
+  updateURL();
 }
 
 function applyFilters() {
-  // Get category filters
   const categoryCheckboxes = document.querySelectorAll('input[name="category"]:checked');
   state.filters.category = categoryCheckboxes.length > 0 ? categoryCheckboxes[0].value : '';
 
-  // Get job type filters
+  // Single-select categories: uncheck others on click is handled loosely
   const jobTypeCheckboxes = document.querySelectorAll('input[name="job_type"]:checked');
-  state.filters.job_type = Array.from(jobTypeCheckboxes).map(cb => cb.value);
+  state.filters.job_type = Array.from(jobTypeCheckboxes).map((cb) => cb.value);
 
-  // Get date filter
   const dateRadio = document.querySelector('input[name="posted_after"]:checked');
   state.filters.posted_after = dateRadio?.value || '';
 
-  // Get salary filters
   state.filters.salary_min = document.getElementById('salaryMin')?.value || '';
   state.filters.salary_max = document.getElementById('salaryMax')?.value || '';
 
   state.currentPage = 1;
   loadJobs();
   updateURL();
+  closeFiltersSheet();
 }
 
 function clearFilters() {
-  // Reset state
   state.filters = {
     search: '',
     location: '',
@@ -543,28 +766,33 @@ function clearFilters() {
   };
   state.currentPage = 1;
 
-  // Reset form inputs
-  document.querySelectorAll('.filters-sidebar input[type="checkbox"]').forEach(cb => cb.checked = false);
-  document.querySelectorAll('.filters-sidebar input[type="radio"]').forEach(rb => rb.checked = false);
-  document.getElementById('salaryMin').value = '';
-  document.getElementById('salaryMax').value = '';
-  document.getElementById('searchInput').value = '';
-  document.getElementById('locationInput').value = '';
+  document.querySelectorAll('.filters-sidebar input[type="checkbox"]').forEach((cb) => {
+    cb.checked = false;
+  });
+  document.querySelectorAll('.filters-sidebar input[type="radio"]').forEach((rb) => {
+    rb.checked = rb.value === '';
+  });
+  const sMin = document.getElementById('salaryMin');
+  const sMax = document.getElementById('salaryMax');
+  if (sMin) sMin.value = '';
+  if (sMax) sMax.value = '';
+  const search = document.getElementById('searchInput');
+  const loc = document.getElementById('locationInput');
+  if (search) search.value = '';
+  if (loc) loc.value = '';
 
-  // Reset quick filters
-  document.querySelectorAll('.quick-filter').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.quick-filter').forEach((btn) => btn.classList.remove('active'));
   document.querySelector('.quick-filter[data-filter="all"]')?.classList.add('active');
 
   loadJobs();
   updateURL();
+  closeFiltersSheet();
 }
 
 function changePage(page) {
   state.currentPage = page;
   loadJobs();
   updateURL();
-
-  // Scroll to top of jobs list
   document.querySelector('.jobs-main')?.scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -596,23 +824,43 @@ function loadFromURL() {
   state.filters.category = params.get('category') || '';
   state.filters.job_type = params.get('type')?.split(',').filter(Boolean) || [];
   state.filters.posted_after = params.get('posted') || '';
-  state.currentPage = parseInt(params.get('page')) || 1;
+  state.currentPage = parseInt(params.get('page'), 10) || 1;
 
-  // Update input fields
-  if (document.getElementById('searchInput')) {
-    document.getElementById('searchInput').value = state.filters.search;
-  }
-  if (document.getElementById('locationInput')) {
-    document.getElementById('locationInput').value = state.filters.location;
+  const searchEl = document.getElementById('searchInput');
+  const locEl = document.getElementById('locationInput');
+  if (searchEl) searchEl.value = state.filters.search;
+  if (locEl) locEl.value = state.filters.location;
+
+  if (state.filters.job_type.length === 1) {
+    document.querySelectorAll('.quick-filter').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.filter === state.filters.job_type[0]);
+    });
   }
 }
 
 // ============================================
-// EVENT LISTENERS
+// FILTER SHEET (MOBILE)
+// ============================================
+
+function openFiltersSheet() {
+  document.getElementById('filtersSidebar')?.classList.add('is-open');
+  document.getElementById('filtersBackdrop')?.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeFiltersSheet() {
+  document.getElementById('filtersSidebar')?.classList.remove('is-open');
+  document.getElementById('filtersBackdrop')?.classList.remove('show');
+  if (!document.getElementById('jobModal')?.classList.contains('show')) {
+    document.body.style.overflow = '';
+  }
+}
+
+// ============================================
+// EVENTS
 // ============================================
 
 function initEventListeners() {
-  // Search
   document.getElementById('searchBtn')?.addEventListener('click', handleSearch);
   document.getElementById('searchInput')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') handleSearch();
@@ -621,28 +869,30 @@ function initEventListeners() {
     if (e.key === 'Enter') handleSearch();
   });
 
-  // Quick filters
-  document.querySelectorAll('.quick-filter').forEach(btn => {
-    btn.addEventListener('click', () => handleQuickFilter(btn.dataset.filter));
+  document.querySelectorAll('.quick-filter').forEach((btn) => {
+    btn.addEventListener('click', () => handleQuickFilter(btn.dataset.filter, btn));
   });
 
-  // Apply filters
   document.getElementById('applyFilters')?.addEventListener('click', applyFilters);
   document.getElementById('clearFilters')?.addEventListener('click', clearFilters);
+  document.getElementById('openFiltersBtn')?.addEventListener('click', openFiltersSheet);
+  document.getElementById('bottomFilterBtn')?.addEventListener('click', openFiltersSheet);
+  document.getElementById('filtersClose')?.addEventListener('click', closeFiltersSheet);
+  document.getElementById('filtersBackdrop')?.addEventListener('click', closeFiltersSheet);
 
-  // Sort
   document.getElementById('sortSelect')?.addEventListener('change', (e) => {
     handleSort(e.target.value);
   });
 
-  // Modal
   document.getElementById('modalOverlay')?.addEventListener('click', closeJobModal);
   document.getElementById('modalClose')?.addEventListener('click', closeJobModal);
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeJobModal();
+    if (e.key === 'Escape') {
+      closeJobModal();
+      closeFiltersSheet();
+    }
   });
 
-  // User menu
   document.getElementById('userMenuBtn')?.addEventListener('click', () => {
     document.getElementById('userDropdown')?.classList.toggle('show');
   });
@@ -652,52 +902,66 @@ function initEventListeners() {
     logout();
   });
 
-  // Mobile menu
   document.getElementById('mobileMenuBtn')?.addEventListener('click', () => {
     document.getElementById('mobileMenu')?.classList.toggle('show');
   });
 
-  // Close dropdowns when clicking outside
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.user-menu')) {
       document.getElementById('userDropdown')?.classList.remove('show');
     }
   });
 
-  // Browser back/forward
   window.addEventListener('popstate', () => {
     loadFromURL();
     loadJobs();
   });
+
+  // Sticky header compact state
+  const header = document.getElementById('siteHeader');
+  if (header) {
+    const onScroll = () => {
+      header.classList.toggle('is-scrolled', window.scrollY > 12);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  // Category filter: only one category at a time
+  document.getElementById('categoryFilters')?.addEventListener('change', (e) => {
+    if (e.target.name === 'category' && e.target.checked) {
+      document.querySelectorAll('input[name="category"]').forEach((cb) => {
+        if (cb !== e.target) cb.checked = false;
+      });
+    }
+  });
 }
 
 // ============================================
-// INITIALIZATION
+// INIT
 // ============================================
 
 async function init() {
-  console.log('🚀 JobsHub initialized');
-
-  // Initialize event listeners
   initEventListeners();
-
-  // Load URL parameters
   loadFromURL();
-
-  // Check authentication
   await checkAuth();
 
-  // Load data
-  await Promise.all([
-    loadFeaturedJobs(),
-    loadJobs(),
-    loadCategories(),
-  ]);
+  await Promise.all([loadFeaturedJobs(), loadJobs(), loadCategories()]);
+
+  if (window.location.hash === '#exploreSection') {
+    document.getElementById('exploreSection')?.scrollIntoView({ behavior: 'smooth' });
+  }
 }
 
-// Run on DOM ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
 }
+
+// Expose for inline handlers if any remain
+window.openJobModal = openJobModal;
+window.loadJobs = loadJobs;
+window.changePage = changePage;
+window.saveJob = saveJob;
+window.trackClick = trackClick;

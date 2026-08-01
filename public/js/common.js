@@ -57,13 +57,31 @@ async function api(endpoint, options = {}) {
 }
 
 function showNotification(message, type = 'info') {
+  let host = document.querySelector('.toast-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.className = 'toast-host';
+    document.body.appendChild(host);
+  }
+
+  const icons = {
+    success: 'check-circle',
+    error: 'exclamation-circle',
+    warning: 'exclamation-triangle',
+    info: 'info-circle',
+  };
+
   const notification = document.createElement('div');
   notification.className = `alert alert-${type}`;
-  notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
-  notification.style.cssText =
-    'position: fixed; top: 80px; right: 20px; z-index: 1000; min-width: 300px; max-width: 420px; animation: slideIn 0.3s ease; box-shadow: var(--shadow-lg);';
-  document.body.appendChild(notification);
-  setTimeout(() => notification.remove(), 3500);
+  notification.innerHTML = `<i class="fas fa-${icons[type] || icons.info}"></i> <span>${escapeHtml(message)}</span>`;
+  host.appendChild(notification);
+
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateX(12px)';
+    notification.style.transition = 'all 0.25s ease';
+    setTimeout(() => notification.remove(), 250);
+  }, 3500);
 }
 
 async function checkAuth() {
@@ -90,19 +108,24 @@ function updateAuthUI(isLoggedIn) {
   const authButtons = document.getElementById('authButtons');
   const userMenu = document.getElementById('userMenu');
   const userName = document.getElementById('userName');
+  const userAvatar = document.getElementById('userAvatar');
   const mobileAuth = document.getElementById('mobileAuth');
 
   if (isLoggedIn && state.user) {
     authButtons?.classList.add('hidden');
     userMenu?.classList.remove('hidden');
+    const display = state.user.name || state.user.email?.split('@')[0] || 'You';
     if (userName) {
-      userName.textContent = state.user.name || state.user.email.split('@')[0];
+      userName.textContent = display;
+    }
+    if (userAvatar) {
+      userAvatar.textContent = display.charAt(0).toUpperCase();
     }
     if (mobileAuth) {
       mobileAuth.innerHTML = `
-        <a href="/alerts" class="btn btn-ghost btn-block">Job Alerts</a>
-        <a href="/saved-jobs" class="btn btn-ghost btn-block">Saved Jobs</a>
-        <button type="button" class="btn btn-primary btn-block" id="mobileLogoutBtn">Sign Out</button>
+        <a href="/alerts" class="btn btn-ghost btn-block">Your alerts</a>
+        <a href="/" class="btn btn-ghost btn-block">Browse jobs</a>
+        <button type="button" class="btn btn-primary btn-block" id="mobileLogoutBtn">Sign out</button>
       `;
       document.getElementById('mobileLogoutBtn')?.addEventListener('click', logout);
     }
@@ -111,8 +134,8 @@ function updateAuthUI(isLoggedIn) {
     userMenu?.classList.add('hidden');
     if (mobileAuth) {
       mobileAuth.innerHTML = `
-        <a href="/login" class="btn btn-ghost btn-block">Sign In</a>
-        <a href="/register" class="btn btn-primary btn-block">Sign Up</a>
+        <a href="/login" class="btn btn-ghost btn-block">Sign in</a>
+        <a href="/register" class="btn btn-primary btn-block">Get started</a>
       `;
     }
   }
@@ -123,7 +146,7 @@ function logout() {
   state.token = null;
   state.user = null;
   updateAuthUI(false);
-  showNotification('You have been logged out', 'success');
+  showNotification('Signed out — see you soon', 'success');
   const protectedPaths = ['/alerts', '/job-alerts', '/saved-jobs', '/profile', '/dashboard'];
   if (protectedPaths.includes(window.location.pathname)) {
     window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
@@ -156,6 +179,15 @@ function initCommonNav() {
       document.getElementById('userDropdown')?.classList.remove('show');
     }
   });
+
+  const header = document.querySelector('.header');
+  if (header) {
+    const onScroll = () => {
+      header.classList.toggle('is-scrolled', window.scrollY > 12);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
 }
 
 function escapeHtml(str) {
@@ -198,4 +230,9 @@ const CATEGORY_ICONS = {
 
 function categoryIconClass(icon) {
   return CATEGORY_ICONS[icon] || 'fa-folder';
+}
+
+/** Shared favicon + font head helpers used by pages that load common late */
+function ensurePremiumMeta() {
+  // no-op placeholder for future shared bootstrapping
 }

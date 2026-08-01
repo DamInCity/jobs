@@ -25,7 +25,7 @@
     },
     {
       "parameters": {
-        "content": "## Discovery placeholder\nReplace this Set node with:\n- SerpAPI / DataForSEO **Google Jobs** search using `searchQuery`, **or**\n- HTTP Request to a public board + HTML extract\n\nMap results to: title, company_name, external_link, location, description, categoryHint",
+        "content": "## Discovery placeholder (must replace)\nReplace Placeholder map with real discovery:\n- SerpAPI / DataForSEO / ValueSERP Google Jobs using `searchQuery`\n- or HTTP Request to a board + HTML extract\n\nMap: title, company_name, external_link, location, description, category/categoryHint\n\nAfter ingest accepts jobs, JobsHub auto-runs daily alerts (Telegram/email).\nSet n8n env JOBSHUB_INGEST_KEY = JobsHub INGEST_API_KEY."
         "height": 280,
         "width": 360
       },

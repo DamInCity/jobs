@@ -32,7 +32,7 @@ function parseArgs(argv = process.argv.slice(2)) {
 }
 
 /**
- * Build job_alerts search_criteria from user preferred_* fields.
+ * Build job_alerts search_criteria from user preferred_* / profile fields.
  */
 function criteriaFromPreferences(user) {
   const criteria = {};
@@ -56,6 +56,16 @@ function criteriaFromPreferences(user) {
     criteria.job_type = types[0];
   } else if (types.length > 1) {
     criteria.job_types = types;
+  }
+
+  // Skills only when no category is set — otherwise AND would over-filter digests
+  if (!criteria.category && !criteria.categories) {
+    const skills = normalizeTextArray(user.skills);
+    const keywords = normalizeTextArray(user.profile_keywords);
+    const skillTerms = [...new Set([...skills, ...keywords])].slice(0, 12);
+    if (skillTerms.length > 0) {
+      criteria.skills = skillTerms;
+    }
   }
 
   return criteria;
@@ -88,18 +98,14 @@ function normalizeTextArray(value) {
  * If user has preferences but no active alert, create a daily "My preferences" alert.
  * Returns the created row or null.
  */
-async function ensurePreferenceAlert(userId, userRow = null) {
-  const existing = await db.query(
-    `SELECT id FROM job_alerts WHERE user_id = $1 AND is_active = true LIMIT 1`,
-    [userId]
-  );
-  if (existing.rows.length > 0) return null;
-
+async function ensurePreferenceAlert(userId, userRow = null, options = {}) {
+  const alertName = options.name || 'My profile';
   let user = userRow;
   if (!user) {
     const res = await db.query(
       `
-      SELECT preferred_categories, preferred_locations, preferred_job_types
+      SELECT preferred_categories, preferred_locations, preferred_job_types,
+             skills, profile_keywords
       FROM users WHERE id = $1
       `,
       [userId]
@@ -111,13 +117,48 @@ async function ensurePreferenceAlert(userId, userRow = null) {
   const criteria = criteriaFromPreferences(user);
   if (Object.keys(criteria).length === 0) return null;
 
+  // Refresh managed profile/preference alerts when re-profiling
+  const managed = await db.query(
+    `
+    SELECT id FROM job_alerts
+    WHERE user_id = $1
+      AND is_active = true
+      AND name = ANY($2::text[])
+    ORDER BY updated_at DESC
+    LIMIT 1
+    `,
+    [userId, ['My profile', 'My preferences']]
+  );
+
+  if (managed.rows.length > 0) {
+    const result = await db.query(
+      `
+      UPDATE job_alerts
+      SET name = $1, search_criteria = $2, frequency = 'daily', is_active = true
+      WHERE id = $3
+      RETURNING *
+      `,
+      [alertName, JSON.stringify(criteria), managed.rows[0].id]
+    );
+    console.log(`📌 Updated preference alert for user ${userId}`);
+    return result.rows[0];
+  }
+
+  if (!options.forceCreate) {
+    const existing = await db.query(
+      `SELECT id FROM job_alerts WHERE user_id = $1 AND is_active = true LIMIT 1`,
+      [userId]
+    );
+    if (existing.rows.length > 0) return null;
+  }
+
   const result = await db.query(
     `
     INSERT INTO job_alerts (user_id, name, search_criteria, frequency, is_active)
     VALUES ($1, $2, $3, 'daily', true)
     RETURNING *
     `,
-    [userId, 'My preferences', JSON.stringify(criteria)]
+    [userId, alertName, JSON.stringify(criteria)]
   );
   console.log(`📌 Created preference alert for user ${userId}`);
   return result.rows[0];
@@ -128,13 +169,16 @@ async function ensurePreferenceAlert(userId, userRow = null) {
  */
 async function backfillPreferenceAlertsForTelegramUsers() {
   const result = await db.query(`
-    SELECT u.id, u.preferred_categories, u.preferred_locations, u.preferred_job_types
+    SELECT u.id, u.preferred_categories, u.preferred_locations, u.preferred_job_types,
+           u.skills, u.profile_keywords
     FROM users u
     WHERE u.telegram_chat_id IS NOT NULL
       AND (
         u.preferred_categories IS NOT NULL
         OR u.preferred_locations IS NOT NULL
         OR u.preferred_job_types IS NOT NULL
+        OR u.skills IS NOT NULL
+        OR u.profile_keywords IS NOT NULL
       )
       AND NOT EXISTS (
         SELECT 1 FROM job_alerts ja
@@ -365,6 +409,17 @@ async function findMatchingJobs(criteria, lastSentAt) {
     conditions.push(`(j.title ILIKE $${paramIndex} OR j.description ILIKE $${paramIndex})`);
     params.push(`%${criteria.keywords}%`);
     paramIndex++;
+  }
+
+  // Skills: match if ANY skill appears in title or description (soft filter)
+  if (Array.isArray(criteria.skills) && criteria.skills.length > 0) {
+    const skillOrs = criteria.skills.slice(0, 12).map((skill) => {
+      const clause = `(j.title ILIKE $${paramIndex} OR j.description ILIKE $${paramIndex})`;
+      params.push(`%${skill}%`);
+      paramIndex++;
+      return clause;
+    });
+    conditions.push(`(${skillOrs.join(' OR ')})`);
   }
 
   // Single category or multi-category (ANY)

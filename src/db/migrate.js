@@ -244,9 +244,17 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_original_name VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_uploaded_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_link_token VARCHAR(64);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_link_expires TIMESTAMP WITH TIME ZONE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_username VARCHAR(64);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS skills TEXT[];
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_summary TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_seniority VARCHAR(50);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_keywords TEXT[];
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_status VARCHAR(32) DEFAULT 'none';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profiled_at TIMESTAMP WITH TIME ZONE;
 
 CREATE INDEX IF NOT EXISTS idx_users_telegram_chat ON users(telegram_chat_id) WHERE telegram_chat_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_telegram_link_token ON users(telegram_link_token) WHERE telegram_link_token IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_profile_status ON users(profile_status) WHERE profile_status IS NOT NULL AND profile_status <> 'none';
 `;
 
 /**
