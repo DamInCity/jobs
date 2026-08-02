@@ -16,6 +16,7 @@
     "scrape:cron": "node src/scrapers/scheduler.js --cron",
     "alerts": "node src/jobs/emailAlerts.js",
     "alerts:force": "node src/jobs/emailAlerts.js --force --frequency=all",
+    "alerts:test": "node src/jobs/emailAlerts.js --test-loop",
     "telegram-bot": "node src/jobs/telegramBot.js"
   },
   "keywords": [
@@ -41,6 +42,7 @@
     "multer": "^2.2.0",
     "nodemailer": "^9.0.3",
     "pdf-parse": "^2.4.5",
+    "pdfmake": "^0.3.11",
     "pg": "^8.11.3",
     "slugify": "^1.6.6",
     "uuid": "^9.0.1"

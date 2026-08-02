@@ -857,6 +857,90 @@ function closeFiltersSheet() {
 }
 
 // ============================================
+// MOBILE NAV (when common.js is not loaded)
+// ============================================
+
+function initStandaloneMobileNav() {
+  if (window.__standaloneNavReady) return;
+  window.__standaloneNavReady = true;
+
+  const ensureBackdrop = () => {
+    let backdrop = document.getElementById('mobileMenuBackdrop');
+    if (backdrop) return backdrop;
+    const menu = document.getElementById('mobileMenu');
+    if (!menu) return null;
+    backdrop = document.createElement('button');
+    backdrop.type = 'button';
+    backdrop.id = 'mobileMenuBackdrop';
+    backdrop.className = 'mobile-menu-backdrop';
+    backdrop.setAttribute('aria-label', 'Close menu');
+    menu.insertAdjacentElement('afterend', backdrop);
+    backdrop.addEventListener('click', () => setStandaloneMenuOpen(false));
+    return backdrop;
+  };
+
+  function setStandaloneMenuOpen(open) {
+    const menu = document.getElementById('mobileMenu');
+    const btn = document.getElementById('mobileMenuBtn');
+    const backdrop = ensureBackdrop();
+    if (!menu) return;
+    menu.classList.toggle('show', !!open);
+    backdrop?.classList.toggle('show', !!open);
+    document.body.classList.toggle('mobile-menu-open', !!open);
+    if (btn) {
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      const icon = btn.querySelector('i');
+      if (icon) icon.className = open ? 'fas fa-times' : 'fas fa-bars';
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#mobileMenuBtn')) {
+      e.preventDefault();
+      e.stopPropagation();
+      const menu = document.getElementById('mobileMenu');
+      setStandaloneMenuOpen(!menu?.classList.contains('show'));
+      return;
+    }
+    if (!e.target.closest('.user-menu')) {
+      document.getElementById('userDropdown')?.classList.remove('show');
+    }
+  });
+
+  document.getElementById('userMenuBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('userDropdown')?.classList.toggle('show');
+  });
+
+  document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    logout();
+  });
+
+  document.getElementById('mobileMenu')?.addEventListener('click', (e) => {
+    if (e.target.closest('a')) setStandaloneMenuOpen(false);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      setStandaloneMenuOpen(false);
+      document.getElementById('userDropdown')?.classList.remove('show');
+    }
+  });
+
+  const header = document.getElementById('siteHeader') || document.querySelector('.header');
+  if (header) {
+    const onScroll = () => {
+      header.classList.toggle('is-scrolled', window.scrollY > 12);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  ensureBackdrop();
+}
+
+// ============================================
 // EVENTS
 // ============================================
 
@@ -893,39 +977,17 @@ function initEventListeners() {
     }
   });
 
-  document.getElementById('userMenuBtn')?.addEventListener('click', () => {
-    document.getElementById('userDropdown')?.classList.toggle('show');
-  });
-
-  document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    logout();
-  });
-
-  document.getElementById('mobileMenuBtn')?.addEventListener('click', () => {
-    document.getElementById('mobileMenu')?.classList.toggle('show');
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.user-menu')) {
-      document.getElementById('userDropdown')?.classList.remove('show');
-    }
-  });
+  // Header / hamburger — prefer shared common.js; fall back for standalone index
+  if (typeof window.initCommonNav === 'function') {
+    window.initCommonNav();
+  } else {
+    initStandaloneMobileNav();
+  }
 
   window.addEventListener('popstate', () => {
     loadFromURL();
     loadJobs();
   });
-
-  // Sticky header compact state
-  const header = document.getElementById('siteHeader');
-  if (header) {
-    const onScroll = () => {
-      header.classList.toggle('is-scrolled', window.scrollY > 12);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-  }
 
   // Category filter: only one category at a time
   document.getElementById('categoryFilters')?.addEventListener('change', (e) => {

@@ -127,6 +127,8 @@ const pageRoutes = {
   '/about': 'about.html',
   '/alerts': 'alerts.html',
   '/job-alerts': 'alerts.html',
+  '/profile': 'profile.html',
+  '/account': 'profile.html',
 };
 
 Object.entries(pageRoutes).forEach(([route, file]) => {

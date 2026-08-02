@@ -11,6 +11,7 @@ const { asyncHandler, AppError } = require('../middleware/errorHandler');
 const { userValidation } = require('../middleware/validation');
 const { profileCvFile } = require('../services/cvProfiler');
 const { ensurePreferenceAlert } = require('../jobs/emailAlerts');
+const resumeTailor = require('../services/resumeTailor');
 
 const router = express.Router();
 
@@ -324,6 +325,65 @@ router.post('/change-password', authenticate, asyncHandler(async (req, res) => {
   });
 }));
 
+// Change email (requires current password; reissues JWT)
+router.post('/change-email', authenticate, userValidation.changeEmail, asyncHandler(async (req, res) => {
+  const newEmail = String(req.body.email || '').toLowerCase().trim();
+  const { password } = req.body;
+
+  const result = await db.query(
+    'SELECT id, email, password_hash, name, role FROM users WHERE id = $1',
+    [req.user.id]
+  );
+  const user = result.rows[0];
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const isValid = await bcrypt.compare(password, user.password_hash);
+  if (!isValid) {
+    throw new AppError('Current password is incorrect', 401);
+  }
+
+  if (newEmail === user.email.toLowerCase()) {
+    throw new AppError('New email is the same as your current email', 400);
+  }
+
+  const taken = await db.query(
+    'SELECT id FROM users WHERE email = $1 AND id <> $2',
+    [newEmail, req.user.id]
+  );
+  if (taken.rows.length > 0) {
+    throw new AppError('Email already registered', 409);
+  }
+
+  const updated = await db.query(
+    `
+    UPDATE users
+    SET email = $1, email_verified = FALSE
+    WHERE id = $2
+    RETURNING id, email, name, role
+    `,
+    [newEmail, req.user.id]
+  );
+
+  const row = updated.rows[0];
+  const token = generateToken(row);
+
+  res.json({
+    success: true,
+    message: 'Email updated successfully',
+    data: {
+      token,
+      user: {
+        id: row.id,
+        email: row.email,
+        name: row.name,
+        role: row.role,
+      },
+    },
+  });
+}));
+
 // ============================================
 // SAVED JOBS
 // ============================================
@@ -539,13 +599,14 @@ router.post(
     await db.query(
       `
       UPDATE users
-      SET cv_path = $1, cv_original_name = $2, cv_uploaded_at = NOW()
+      SET cv_path = $1, cv_original_name = $2, cv_uploaded_at = NOW(),
+          master_resume_json = NULL, master_resume_parsed_at = NULL
       WHERE id = $3
       `,
       [req.file.path, req.file.originalname, req.user.id]
     );
 
-    // Profile from CV (rules + optional xAI)
+    // Profile from CV (rules + optional LLM)
     let profile = null;
     let profileError = null;
     try {
@@ -599,6 +660,121 @@ router.post(
     });
   })
 );
+
+// ============================================
+// RESUME TAILOR (AI + PDF)
+// ============================================
+
+router.get('/resume/status', authenticate, asyncHandler(async (req, res) => {
+  const result = await db.query(
+    `
+    SELECT (cv_path IS NOT NULL) AS has_cv,
+           cv_original_name, cv_uploaded_at,
+           master_resume_parsed_at,
+           (master_resume_json IS NOT NULL) AS has_master_resume
+    FROM users WHERE id = $1
+    `,
+    [req.user.id]
+  );
+  res.json({
+    success: true,
+    data: {
+      ...result.rows[0],
+      llm_configured: resumeTailor.isLlmConfigured(),
+    },
+  });
+}));
+
+router.get('/resume/candidates', authenticate, asyncHandler(async (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 8;
+  const jobs = await resumeTailor.getResumeCandidates(req.user.id, limit);
+  res.json({ success: true, data: jobs });
+}));
+
+router.post('/resume/parse', authenticate, asyncHandler(async (req, res) => {
+  try {
+    const { resume, cached, method } = await resumeTailor.ensureMasterResume(req.user.id, {
+      force: true,
+    });
+    res.json({
+      success: true,
+      message: cached ? 'Master resume already up to date' : 'Master resume parsed',
+      data: {
+        method: method || (cached ? 'cache' : 'parsed'),
+        basics: resume.basics,
+        work_count: resume.work?.length || 0,
+        skills_count: resume.skills?.length || 0,
+        education_count: resume.education?.length || 0,
+      },
+    });
+  } catch (error) {
+    throw new AppError(error.message || 'Parse failed', error.status || 500);
+  }
+}));
+
+router.post('/resume/tailor', authenticate, asyncHandler(async (req, res) => {
+  const jobId = req.body?.job_id || req.body?.jobId;
+  if (!jobId) {
+    throw new AppError('job_id is required', 400);
+  }
+
+  try {
+    const row = await resumeTailor.tailorAndSave(req.user.id, jobId);
+    res.status(201).json({
+      success: true,
+      message: 'Tailored CV generated',
+      data: {
+        id: row.id,
+        job_id: row.job_id,
+        job_title: row.job_title,
+        company_name: row.company_name,
+        original_name: row.original_name,
+        changes_summary: row.changes_summary,
+        created_at: row.created_at,
+        download_url: row.download_path,
+        provider: row.provider,
+      },
+    });
+  } catch (error) {
+    throw new AppError(error.message || 'Tailor failed', error.status || 500);
+  }
+}));
+
+router.get('/resume/tailored', authenticate, asyncHandler(async (req, res) => {
+  const rows = await resumeTailor.listTailored(req.user.id);
+  res.json({
+    success: true,
+    data: rows.map((r) => ({
+      ...r,
+      download_url: `/api/users/resume/tailored/${r.id}/download`,
+    })),
+  });
+}));
+
+router.get('/resume/tailored/:id/download', authenticate, asyncHandler(async (req, res) => {
+  const row = await resumeTailor.getTailoredForUser(req.user.id, req.params.id);
+  if (!row) {
+    throw new AppError('Tailored resume not found', 404);
+  }
+  if (!row.file_path || !fs.existsSync(row.file_path)) {
+    throw new AppError('File missing on server', 404);
+  }
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${(row.original_name || 'tailored-cv.pdf').replace(/"/g, '')}"`
+  );
+  fs.createReadStream(row.file_path).pipe(res);
+}));
+
+router.delete('/resume/tailored/:id', authenticate, asyncHandler(async (req, res) => {
+  const ok = await resumeTailor.deleteTailored(req.user.id, req.params.id);
+  if (!ok) {
+    throw new AppError('Tailored resume not found', 404);
+  }
+  res.json({ success: true, message: 'Deleted' });
+}));
 
 // Re-run profiling on existing CV
 router.post('/cv/reprofile', authenticate, asyncHandler(async (req, res) => {
@@ -717,7 +893,8 @@ router.delete('/cv', authenticate, asyncHandler(async (req, res) => {
   await db.query(
     `
     UPDATE users
-    SET cv_path = NULL, cv_original_name = NULL, cv_uploaded_at = NULL
+    SET cv_path = NULL, cv_original_name = NULL, cv_uploaded_at = NULL,
+        master_resume_json = NULL, master_resume_parsed_at = NULL
     WHERE id = $1
     `,
     [req.user.id]

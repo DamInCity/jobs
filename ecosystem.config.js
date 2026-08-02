@@ -52,6 +52,26 @@ module.exports = {
       out_file: '/var/www/jobs/logs/telegram-output.log',
       time: true,
     },
+    // Diagnostic only: start with ALERT_TEST_INTERVAL_MINUTES=5 when testing Telegram delivery.
+    // pm2 start ecosystem.config.js --only jobs-alerts-test
+    {
+      name: 'jobs-alerts-test',
+      cwd: '/var/www/jobs',
+      script: 'src/jobs/emailAlerts.js',
+      args: '--test-loop',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '256M',
+      env: {
+        NODE_ENV: 'production',
+        ALERT_TEST_INTERVAL_MINUTES: '5',
+        ALERT_LOOKBACK_DAYS: '30',
+      },
+      error_file: '/var/www/jobs/logs/alerts-test-error.log',
+      out_file: '/var/www/jobs/logs/alerts-test-output.log',
+      time: true,
+    },
     {
       name: 'jobs-scraper',
       cwd: '/var/www/jobs',

@@ -579,8 +579,22 @@ ul, ol {
   background: var(--surface);
   border: 1px solid var(--border);
   font-size: 1.1rem;
+  cursor: pointer;
+  position: relative;
+  z-index: 60;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
+.mobile-menu-btn:hover,
+.mobile-menu-btn:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  outline: none;
+}
+
+/* Fixed drawer under sticky header — always visible when open */
 .mobile-menu {
   display: none;
   flex-direction: column;
@@ -588,11 +602,51 @@ ul, ol {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-md);
+  position: fixed;
+  top: var(--header-h);
+  left: 0;
+  right: 0;
+  z-index: 95;
+  max-height: calc(100dvh - var(--header-h) - 0.5rem);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   animation: mobileMenuIn 0.25s var(--ease-out);
 }
 
 .mobile-menu.show {
   display: flex;
+}
+
+.header.is-scrolled ~ .mobile-menu {
+  top: var(--header-h-scrolled);
+  max-height: calc(100dvh - var(--header-h-scrolled) - 0.5rem);
+}
+
+/* Dim page content while menu is open */
+.mobile-menu-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  top: var(--header-h);
+  z-index: 94;
+  background: var(--overlay);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.mobile-menu-backdrop.show {
+  display: block;
+}
+
+.header.is-scrolled ~ .mobile-menu-backdrop {
+  top: var(--header-h-scrolled);
+}
+
+/* Prevent background scroll while drawer is open */
+body.mobile-menu-open {
+  overflow: hidden;
+  touch-action: none;
 }
 
 @keyframes mobileMenuIn {
@@ -606,6 +660,9 @@ ul, ol {
   color: var(--ink-2);
   border-bottom: 1px solid var(--border);
   font-size: var(--text-base);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 .mobile-auth {
@@ -626,6 +683,16 @@ ul, ol {
 
   .mobile-menu-btn {
     display: grid;
+  }
+
+  /* Keep avatar; hide long names so hamburger stays tappable */
+  .user-menu-btn #userName,
+  .user-menu-btn .fa-chevron-down {
+    display: none;
+  }
+
+  .user-menu-btn {
+    padding: 0.35rem;
   }
 }
 

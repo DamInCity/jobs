@@ -128,6 +128,16 @@ const userValidation = {
       .isArray().withMessage('Preferred job types must be an array'),
     validate,
   ],
+  changeEmail: [
+    body('email')
+      .trim()
+      .notEmpty().withMessage('New email is required')
+      .isEmail().withMessage('Must be a valid email address')
+      .normalizeEmail(),
+    body('password')
+      .notEmpty().withMessage('Current password is required'),
+    validate,
+  ],
 };
 
 // Category validation rules

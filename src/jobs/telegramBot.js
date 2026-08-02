@@ -1,5 +1,5 @@
 /**
- * Telegram bot long-polling for account linking + preference status
+ * Telegram bot long-polling for account linking + preference status + /resume
  * Run: node src/jobs/telegramBot.js
  * Requires TELEGRAM_BOT_TOKEN
  *
@@ -7,15 +7,22 @@
  */
 
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const { Blob } = require('buffer');
 const db = require('../db');
 const config = require('../config');
 const { ensurePreferenceAlert } = require('./emailAlerts');
+const resumeTailor = require('../services/resumeTailor');
 
 const TOKEN = config.telegram.botToken;
 const API = TOKEN ? `https://api.telegram.org/bot${TOKEN}` : null;
 
 let offset = 0;
 let running = true;
+
+/** chatId → [{ id, title, company_name }] for /resume N */
+const resumePickCache = new Map();
 
 async function apiCall(method, body) {
   const response = await fetch(`${API}/${method}`, {
@@ -44,12 +51,40 @@ async function sendMessage(chatId, text) {
   }
 }
 
+/**
+ * Send a local PDF via Telegram sendDocument (multipart).
+ */
+async function sendDocument(chatId, filePath, options = {}) {
+  if (!filePath || !fs.existsSync(filePath)) {
+    throw new Error('Document file not found');
+  }
+  const buffer = fs.readFileSync(filePath);
+  const filename = options.filename || path.basename(filePath);
+  const form = new FormData();
+  form.append('chat_id', String(chatId));
+  form.append('document', new Blob([buffer], { type: 'application/pdf' }), filename);
+  if (options.caption) {
+    form.append('caption', String(options.caption).slice(0, 1024));
+  }
+
+  const response = await fetch(`${API}/sendDocument`, {
+    method: 'POST',
+    body: form,
+  });
+  const data = await response.json();
+  if (!data.ok) {
+    throw new Error(data.description || 'Telegram sendDocument failed');
+  }
+  return data.result;
+}
+
 async function findUserByChat(chatId) {
   const result = await db.query(
     `
     SELECT id, email, name, notify_channels,
            preferred_categories, preferred_locations, preferred_job_types,
-           telegram_chat_id
+           telegram_chat_id, cv_path, cv_original_name,
+           (cv_path IS NOT NULL) AS has_cv
     FROM users
     WHERE telegram_chat_id = $1
     LIMIT 1
@@ -152,6 +187,7 @@ async function linkUser(token, chatId, from) {
       `Commands:\n` +
       `/status — account & channels\n` +
       `/alerts — your active job filters\n` +
+      `/resume — tailor your CV for a matching job\n` +
       `/help — help\n\n` +
       `Manage preferences: ${config.app.url}/alerts`
   );
@@ -251,6 +287,139 @@ async function sendAlertsList(chatId) {
   await sendMessage(chatId, lines.join('\n'));
 }
 
+/**
+ * /resume — list candidates; /resume N or /resume <job-uuid> — generate tailored PDF
+ */
+async function handleResume(chatId, arg) {
+  const user = await findUserByChat(chatId);
+  if (!user) {
+    await sendMessage(
+      chatId,
+      `Not linked yet.\nOpen ${config.app.url}/alerts and tap “Link Telegram”.`
+    );
+    return;
+  }
+
+  if (!user.has_cv && !user.cv_path) {
+    await sendMessage(
+      chatId,
+      `Upload your master CV first:\n${config.app.url}/profile\n\nThen run /resume again.`
+    );
+    return;
+  }
+
+  if (!resumeTailor.isLlmConfigured()) {
+    await sendMessage(
+      chatId,
+      'Resume AI is not configured on the server (SILICONFLOW_API_KEY). Ask the admin to set it in .env.'
+    );
+    return;
+  }
+
+  const token = (arg || '').trim();
+
+  // List mode
+  if (!token) {
+    const candidates = await resumeTailor.getResumeCandidates(user.id, 8);
+    if (!candidates.length) {
+      await sendMessage(
+        chatId,
+        `No matching jobs found yet.\nBrowse and save roles on the site, then try again:\n${config.app.url}`
+      );
+      return;
+    }
+    resumePickCache.set(String(chatId), candidates.map((c) => ({
+      id: c.id,
+      title: c.title,
+      company_name: c.company_name,
+    })));
+
+    const lines = [
+      'Tailor your CV for a role\n',
+      'Reply with /resume <number> or /resume <job-id>\n',
+    ];
+    candidates.forEach((c, i) => {
+      const src = c.source === 'saved' ? '★' : c.source === 'match' ? '≈' : '·';
+      lines.push(
+        `${i + 1}. ${src} ${c.title || 'Role'} @ ${c.company_name || 'Company'}` +
+          (c.location ? `\n   ${c.location}` : '')
+      );
+    });
+    lines.push(`\nHistory & downloads: ${config.app.url}/profile`);
+    await sendMessage(chatId, lines.join('\n'));
+    return;
+  }
+
+  // Resolve job id from list index or uuid / short id
+  let jobId = null;
+  if (/^\d{1,2}$/.test(token)) {
+    const list = resumePickCache.get(String(chatId)) || [];
+    const idx = parseInt(token, 10) - 1;
+    if (idx < 0 || idx >= list.length) {
+      await sendMessage(chatId, 'Invalid number. Send /resume to refresh the list.');
+      return;
+    }
+    jobId = list[idx].id;
+  } else if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)
+  ) {
+    jobId = token;
+  } else if (/^[0-9a-f]{8}$/i.test(token)) {
+    const r = await db.query(
+      `SELECT id FROM jobs WHERE id::text ILIKE $1 LIMIT 2`,
+      [`${token}%`]
+    );
+    if (r.rows.length === 1) {
+      jobId = r.rows[0].id;
+    } else if (r.rows.length > 1) {
+      await sendMessage(chatId, 'Ambiguous job id — use the full UUID or a list number.');
+      return;
+    }
+  }
+
+  if (!jobId) {
+    await sendMessage(
+      chatId,
+      'Could not resolve that job. Send /resume for a numbered list, or /resume <job-uuid>.'
+    );
+    return;
+  }
+
+  const jobMeta = await db.query(
+    `SELECT id, title, company_name FROM jobs WHERE id = $1`,
+    [jobId]
+  );
+  if (!jobMeta.rows[0]) {
+    await sendMessage(chatId, 'Job not found.');
+    return;
+  }
+
+  const job = jobMeta.rows[0];
+  await sendMessage(
+    chatId,
+    `⏳ Tailoring your CV for:\n${job.title} @ ${job.company_name || 'Company'}\n\nThis can take up to a minute…`
+  );
+
+  try {
+    const row = await resumeTailor.tailorAndSave(user.id, jobId);
+    const caption =
+      `✅ Tailored CV\n${row.job_title} @ ${row.company_name || ''}\n\n` +
+      `${(row.changes_summary || '').slice(0, 700)}\n\n` +
+      `Also on: ${config.app.url}/profile`;
+
+    await sendDocument(chatId, row.file_path, {
+      filename: row.original_name || 'tailored-cv.pdf',
+      caption,
+    });
+  } catch (error) {
+    console.error('Telegram /resume failed:', error.message);
+    await sendMessage(
+      chatId,
+      `❌ Could not generate CV: ${error.message}\n\nUpload/check CV at ${config.app.url}/profile`
+    );
+  }
+}
+
 async function handleUpdate(update) {
   const message = update.message || update.edited_message;
   if (!message?.text) return;
@@ -258,6 +427,7 @@ async function handleUpdate(update) {
   const chatId = message.chat.id;
   const text = message.text.trim();
   const command = text.split(/\s+/)[0].split('@')[0].toLowerCase();
+  const arg = text.split(/\s+/).slice(1).join(' ').trim();
 
   if (text.startsWith('/start')) {
     const parts = text.split(/\s+/);
@@ -273,9 +443,12 @@ async function handleUpdate(update) {
         '/start — link account (use the link from the website)\n' +
         '/status — check link & channels\n' +
         '/alerts — list category / preference filters\n' +
+        '/resume — list matching jobs & tailor your CV\n' +
+        '/resume 1 — generate tailored PDF for list item #1\n' +
         '/help — this message\n\n' +
         `Job digests are sent when new listings match your filters.\n` +
-        `Set categories: ${config.app.url}/alerts`
+        `Profile & CV: ${config.app.url}/profile\n` +
+        `Alerts: ${config.app.url}/alerts`
     );
     return;
   }
@@ -290,9 +463,14 @@ async function handleUpdate(update) {
     return;
   }
 
+  if (command === '/resume' || command === '/cv') {
+    await handleResume(chatId, arg);
+    return;
+  }
+
   await sendMessage(
     chatId,
-    'JobsHub bot commands:\n/start — link account\n/status — account status\n/alerts — your filters\n/help — help'
+    'JobsHub bot commands:\n/start — link account\n/status — account status\n/alerts — your filters\n/resume — tailor CV\n/help — help'
   );
 }
 

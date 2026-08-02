@@ -44,6 +44,14 @@ const config = {
     botUsername: process.env.TELEGRAM_BOT_USERNAME || '',
   },
 
+  // Job alert matching + diagnostic test loop
+  alerts: {
+    // First-send / backfill lookback (days). Was hard-coded 24h and missed older listings.
+    lookbackDays: Math.max(1, parseInt(process.env.ALERT_LOOKBACK_DAYS, 10) || 30),
+    // While > 0 and process runs with --test-loop, send 1 matched job to each Telegram-linked user every N minutes
+    testIntervalMinutes: Math.max(0, parseInt(process.env.ALERT_TEST_INTERVAL_MINUTES, 10) || 0),
+  },
+
   n8n: {
     webhookUrl: process.env.N8N_WEBHOOK_URL || '',
   },
@@ -52,10 +60,18 @@ const config = {
     apiKey: process.env.INGEST_API_KEY || '',
   },
 
-  // SpaceXAI / xAI for optional CV LLM profiling
+  // SpaceXAI / xAI for optional CV LLM profiling (fallback if SiliconFlow unset)
   xai: {
     apiKey: process.env.XAI_API_KEY || '',
     model: process.env.XAI_MODEL || 'grok-4.5',
+  },
+
+  // SiliconFlow (primary LLM for CV profile + resume tailor)
+  // https://docs.siliconflow.cn — OpenAI-compatible /v1/chat/completions
+  siliconflow: {
+    apiKey: process.env.SILICONFLOW_API_KEY || '',
+    baseUrl: process.env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1',
+    model: process.env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-72B-Instruct',
   },
 
   scrapers: {
@@ -65,6 +81,7 @@ const config = {
   uploads: {
     cvDir: process.env.CV_UPLOAD_DIR || require('path').join(__dirname, '../../uploads/cvs'),
     maxCvBytes: parseInt(process.env.MAX_CV_BYTES, 10) || 5 * 1024 * 1024,
+    tailoredKeep: Math.max(5, parseInt(process.env.TAILORED_RESUME_KEEP, 10) || 20),
   },
   
   rateLimit: {

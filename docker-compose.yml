@@ -50,6 +50,8 @@ services:
       # Telegram digests (sendMessage) — same token as telegram-bot service
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      ALERT_LOOKBACK_DAYS: ${ALERT_LOOKBACK_DAYS:-30}
+      ALERT_TEST_INTERVAL_MINUTES: ${ALERT_TEST_INTERVAL_MINUTES:-0}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -59,8 +61,12 @@ services:
       INGEST_API_KEY: ${INGEST_API_KEY:-}
       XAI_API_KEY: ${XAI_API_KEY:-}
       XAI_MODEL: ${XAI_MODEL:-grok-4.5}
+      SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
+      SILICONFLOW_BASE_URL: ${SILICONFLOW_BASE_URL:-https://api.siliconflow.cn/v1}
+      SILICONFLOW_MODEL: ${SILICONFLOW_MODEL:-Qwen/Qwen2.5-72B-Instruct}
       CV_UPLOAD_DIR: ${CV_UPLOAD_DIR:-/app/uploads/cvs}
       MAX_CV_BYTES: ${MAX_CV_BYTES:-5242880}
+      TAILORED_RESUME_KEEP: ${TAILORED_RESUME_KEEP:-20}
     volumes:
       - cv_uploads:/app/uploads/cvs
     ports:
@@ -70,6 +76,44 @@ services:
         condition: service_healthy
     networks:
       - jobs_network
+
+  # Optional diagnostic: 1 matched Telegram job every N minutes for all linked users.
+  # docker compose --profile alerts-test up -d alerts-test
+  alerts-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jobs_alerts_test
+    restart: unless-stopped
+    command: ["node", "src/jobs/emailAlerts.js", "--test-loop"]
+    healthcheck:
+      disable: true
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-jobs_website}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      ALERT_LOOKBACK_DAYS: ${ALERT_LOOKBACK_DAYS:-30}
+      ALERT_TEST_INTERVAL_MINUTES: ${ALERT_TEST_INTERVAL_MINUTES:-5}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@jobswebsite.com}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      app:
+        condition: service_started
+    networks:
+      - jobs_network
+    profiles:
+      - alerts-test
 
   # Telegram link bot (long-polling). Job digests are sent by app/alerts job.
   telegram-bot:
@@ -92,6 +136,16 @@ services:
       APP_URL: ${APP_URL:-http://localhost:3000}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
+      SILICONFLOW_BASE_URL: ${SILICONFLOW_BASE_URL:-https://api.siliconflow.cn/v1}
+      SILICONFLOW_MODEL: ${SILICONFLOW_MODEL:-Qwen/Qwen2.5-72B-Instruct}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      XAI_MODEL: ${XAI_MODEL:-grok-4.5}
+      CV_UPLOAD_DIR: ${CV_UPLOAD_DIR:-/app/uploads/cvs}
+      MAX_CV_BYTES: ${MAX_CV_BYTES:-5242880}
+      TAILORED_RESUME_KEEP: ${TAILORED_RESUME_KEEP:-20}
+    volumes:
+      - cv_uploads:/app/uploads/cvs
     depends_on:
       postgres:
         condition: service_healthy
@@ -123,6 +177,7 @@ services:
       INGEST_MAX_JOBS_PER_SOURCE: ${INGEST_MAX_JOBS_PER_SOURCE:-400}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      ALERT_LOOKBACK_DAYS: ${ALERT_LOOKBACK_DAYS:-30}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}

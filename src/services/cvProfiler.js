@@ -1,12 +1,12 @@
 /**
  * CV text extraction + skill/category profiling.
- * Rule-based taxonomy by default; optional xAI (SpaceXAI) when XAI_API_KEY is set.
+ * Rule-based taxonomy by default; optional LLM refine via SiliconFlow (or xAI fallback).
  */
 
 const fs = require('fs');
 const path = require('path');
-const config = require('../config');
 const { mapCategory, TITLE_RULES, KNOWN_SLUGS } = require('../scrapers/categoryMapper');
+const llm = require('./llmClient');
 
 const LOCATION_HINTS = [
   'nairobi',
@@ -210,13 +210,11 @@ function buildRuleProfile(text) {
 }
 
 /**
- * Optional LLM refinement via xAI (SpaceXAI). Falls back to rule profile on failure.
+ * Optional LLM refinement (SiliconFlow preferred, else xAI). Falls back to rules on failure.
  */
 async function refineWithLlm(text, ruleProfile) {
-  const apiKey = config.xai?.apiKey || process.env.XAI_API_KEY;
-  if (!apiKey) return null;
+  if (!llm.isConfigured()) return null;
 
-  const model = config.xai?.model || process.env.XAI_MODEL || 'grok-4.5';
   const excerpt = String(text).slice(0, 12000);
   const allowed = [...KNOWN_SLUGS].join(', ');
 
@@ -226,40 +224,18 @@ category_slugs must be from: ${allowed}
 Max 4 categories, max 20 skills. Prefer concrete tools/roles.`;
 
   try {
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        messages: [
-          { role: 'system', content: system },
-          {
-            role: 'user',
-            content: `Rule baseline: ${JSON.stringify(ruleProfile)}\n\nCV text:\n${excerpt}`,
-          },
-        ],
-      }),
-      signal: AbortSignal.timeout(45000),
+    const { parsed, provider } = await llm.chatJson({
+      temperature: 0.2,
+      maxTokens: 1024,
+      timeoutMs: 45000,
+      messages: [
+        { role: 'system', content: system },
+        {
+          role: 'user',
+          content: `Rule baseline: ${JSON.stringify(ruleProfile)}\n\nCV text:\n${excerpt}`,
+        },
+      ],
     });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.warn(`CV LLM profile failed (${response.status}): ${errText.slice(0, 200)}`);
-      return null;
-    }
-
-    const data = await response.json();
-    const content =
-      data.choices?.[0]?.message?.content ||
-      data.output_text ||
-      '';
-    const jsonMatch = String(content).match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    const parsed = JSON.parse(jsonMatch[0]);
 
     const slugs = (Array.isArray(parsed.category_slugs) ? parsed.category_slugs : [])
       .map((s) => String(s).toLowerCase().trim().replace(/\s+/g, '-'))
@@ -275,7 +251,7 @@ Max 4 categories, max 20 skills. Prefer concrete tools/roles.`;
         : ruleProfile.seniority,
       keywords: uniqueStrings(parsed.keywords || parsed.skills, 12),
       summary: String(parsed.summary || ruleProfile.summary).slice(0, 500),
-      method: 'xai+rules',
+      method: `${provider}+rules`,
       confidence: 0.85,
     };
   } catch (error) {

@@ -123,11 +123,15 @@ function updateAuthUI(isLoggedIn) {
     }
     if (mobileAuth) {
       mobileAuth.innerHTML = `
+        <a href="/profile" class="btn btn-ghost btn-block">Profile</a>
         <a href="/alerts" class="btn btn-ghost btn-block">Your alerts</a>
         <a href="/" class="btn btn-ghost btn-block">Browse jobs</a>
         <button type="button" class="btn btn-primary btn-block" id="mobileLogoutBtn">Sign out</button>
       `;
-      document.getElementById('mobileLogoutBtn')?.addEventListener('click', logout);
+      document.getElementById('mobileLogoutBtn')?.addEventListener('click', () => {
+        setMobileMenuOpen(false);
+        logout();
+      });
     }
   } else {
     authButtons?.classList.remove('hidden');
@@ -160,8 +164,72 @@ function setAuthSession(token, user) {
   updateAuthUI(true);
 }
 
+let _commonNavReady = false;
+
+function ensureMobileMenuBackdrop() {
+  let backdrop = document.getElementById('mobileMenuBackdrop');
+  if (backdrop) return backdrop;
+  const menu = document.getElementById('mobileMenu');
+  if (!menu) return null;
+  backdrop = document.createElement('button');
+  backdrop.type = 'button';
+  backdrop.id = 'mobileMenuBackdrop';
+  backdrop.className = 'mobile-menu-backdrop';
+  backdrop.setAttribute('aria-label', 'Close menu');
+  menu.insertAdjacentElement('afterend', backdrop);
+  backdrop.addEventListener('click', () => setMobileMenuOpen(false));
+  return backdrop;
+}
+
+function setMobileMenuOpen(open) {
+  const menu = document.getElementById('mobileMenu');
+  const btn = document.getElementById('mobileMenuBtn');
+  const backdrop = ensureMobileMenuBackdrop();
+  if (!menu) return;
+  menu.classList.toggle('show', !!open);
+  menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+  backdrop?.classList.toggle('show', !!open);
+  if (btn) {
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    const icon = btn.querySelector('i');
+    if (icon) {
+      icon.className = open ? 'fas fa-times' : 'fas fa-bars';
+    }
+  }
+  document.body.classList.toggle('mobile-menu-open', !!open);
+}
+
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  const willOpen = !menu?.classList.contains('show');
+  setMobileMenuOpen(willOpen);
+}
+
+/**
+ * Wire header user menu + mobile hamburger. Safe to call multiple times.
+ */
 function initCommonNav() {
-  document.getElementById('userMenuBtn')?.addEventListener('click', () => {
+  if (_commonNavReady) return;
+  _commonNavReady = true;
+
+  // Event delegation: works even if the button is re-rendered
+  document.addEventListener('click', (e) => {
+    const mobileBtn = e.target.closest('#mobileMenuBtn');
+    if (mobileBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMobileMenu();
+      return;
+    }
+
+    if (!e.target.closest('.user-menu')) {
+      document.getElementById('userDropdown')?.classList.remove('show');
+    }
+  });
+
+  document.getElementById('userMenuBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
     document.getElementById('userDropdown')?.classList.toggle('show');
   });
 
@@ -170,12 +238,25 @@ function initCommonNav() {
     logout();
   });
 
-  document.getElementById('mobileMenuBtn')?.addEventListener('click', () => {
-    document.getElementById('mobileMenu')?.classList.toggle('show');
-  });
+  const mobileBtn = document.getElementById('mobileMenuBtn');
+  if (mobileBtn) {
+    mobileBtn.setAttribute('aria-controls', 'mobileMenu');
+    mobileBtn.setAttribute('aria-expanded', 'false');
+  }
 
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.user-menu')) {
+  const mobileMenu = document.getElementById('mobileMenu');
+  if (mobileMenu) {
+    mobileMenu.setAttribute('aria-hidden', 'true');
+    mobileMenu.addEventListener('click', (e) => {
+      if (e.target.closest('a')) setMobileMenuOpen(false);
+    });
+  }
+
+  ensureMobileMenuBackdrop();
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      setMobileMenuOpen(false);
       document.getElementById('userDropdown')?.classList.remove('show');
     }
   });
@@ -188,6 +269,18 @@ function initCommonNav() {
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
   }
+}
+
+// Expose for pages that share helpers
+window.setMobileMenuOpen = setMobileMenuOpen;
+window.toggleMobileMenu = toggleMobileMenu;
+window.initCommonNav = initCommonNav;
+
+// Always attach nav handlers when common.js is present
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initCommonNav);
+} else {
+  initCommonNav();
 }
 
 function escapeHtml(str) {

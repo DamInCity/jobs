@@ -415,6 +415,64 @@ async function linkTelegram() {
   }
 }
 
+function toggleChangeEmailForm(show) {
+  const form = document.getElementById('changeEmailForm');
+  if (!form) return;
+  form.classList.toggle('hidden', !show);
+  if (show) {
+    document.getElementById('newEmail')?.focus();
+  } else {
+    form.reset();
+  }
+}
+
+async function changeEmail(e) {
+  e.preventDefault();
+  const email = document.getElementById('newEmail')?.value?.trim();
+  const password = document.getElementById('emailPassword')?.value || '';
+  const btn = document.getElementById('changeEmailSubmit');
+
+  if (!email || !password) {
+    showNotification('Email and current password are required', 'error');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.dataset.originalHtml = btn.dataset.originalHtml || btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating…';
+  }
+
+  try {
+    const res = await api('/users/change-email', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    if (res.data?.token) {
+      setAuthSession(res.data.token, res.data.user || { ...state.user, email: res.data.user?.email || email });
+    } else if (res.data?.user) {
+      state.user = { ...state.user, ...res.data.user };
+    }
+    // Refresh full profile for channel hints
+    try {
+      const profile = await api('/users/profile');
+      state.user = profile.data;
+      applyProfileToChannels(profile.data);
+    } catch {
+      applyProfileToChannels(state.user || {});
+    }
+    toggleChangeEmailForm(false);
+    showNotification('Email updated — use the new address next time you sign in', 'success');
+  } catch (error) {
+    showNotification(error.message || 'Could not update email', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.originalHtml || '<i class="fas fa-envelope"></i> Update email';
+    }
+  }
+}
+
 async function unlinkTelegram() {
   if (!confirm('Unlink Telegram from this account?')) return;
   try {
@@ -552,6 +610,13 @@ async function initAlertsPage() {
   document.getElementById('channelTelegram')?.addEventListener('change', saveChannels);
   document.getElementById('linkTelegramBtn')?.addEventListener('click', linkTelegram);
   document.getElementById('unlinkTelegramBtn')?.addEventListener('click', unlinkTelegram);
+  document.getElementById('changeEmailToggle')?.addEventListener('click', () => {
+    const form = document.getElementById('changeEmailForm');
+    const hidden = form?.classList.contains('hidden');
+    toggleChangeEmailForm(!!hidden);
+  });
+  document.getElementById('changeEmailCancel')?.addEventListener('click', () => toggleChangeEmailForm(false));
+  document.getElementById('changeEmailForm')?.addEventListener('submit', changeEmail);
 
   document.getElementById('cvPickBtn')?.addEventListener('click', () => {
     document.getElementById('cvFile')?.click();

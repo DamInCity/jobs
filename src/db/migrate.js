@@ -153,6 +153,21 @@ CREATE TABLE IF NOT EXISTS job_alerts (
 CREATE INDEX IF NOT EXISTS idx_job_alerts_user ON job_alerts(user_id);
 CREATE INDEX IF NOT EXISTS idx_job_alerts_active ON job_alerts(is_active);
 
+-- Per-user job delivery log (prevents re-sending the same job in digests)
+CREATE TABLE IF NOT EXISTS job_alert_deliveries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  alert_id UUID REFERENCES job_alerts(id) ON DELETE SET NULL,
+  channel VARCHAR(32),
+  is_test BOOLEAN DEFAULT FALSE,
+  sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, job_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_alert_deliveries_user ON job_alert_deliveries(user_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_job_alert_deliveries_job ON job_alert_deliveries(job_id);
+
 -- Job views tracking (for analytics)
 CREATE TABLE IF NOT EXISTS job_views (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -251,10 +266,43 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_seniority VARCHAR(50);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_keywords TEXT[];
 ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_status VARCHAR(32) DEFAULT 'none';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS profiled_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS master_resume_json JSONB;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS master_resume_parsed_at TIMESTAMP WITH TIME ZONE;
 
 CREATE INDEX IF NOT EXISTS idx_users_telegram_chat ON users(telegram_chat_id) WHERE telegram_chat_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_telegram_link_token ON users(telegram_link_token) WHERE telegram_link_token IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_profile_status ON users(profile_status) WHERE profile_status IS NOT NULL AND profile_status <> 'none';
+
+-- Tailored CVs generated for specific job opportunities
+CREATE TABLE IF NOT EXISTS tailored_resumes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+  job_title TEXT,
+  company_name TEXT,
+  file_path TEXT NOT NULL,
+  original_name VARCHAR(255),
+  changes_summary TEXT,
+  tailored_json JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tailored_resumes_user ON tailored_resumes(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tailored_resumes_job ON tailored_resumes(job_id) WHERE job_id IS NOT NULL;
+
+-- Idempotent delivery log for existing DBs
+CREATE TABLE IF NOT EXISTS job_alert_deliveries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  alert_id UUID REFERENCES job_alerts(id) ON DELETE SET NULL,
+  channel VARCHAR(32),
+  is_test BOOLEAN DEFAULT FALSE,
+  sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, job_id)
+);
+CREATE INDEX IF NOT EXISTS idx_job_alert_deliveries_user ON job_alert_deliveries(user_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_job_alert_deliveries_job ON job_alert_deliveries(job_id);
 `;
 
 /**

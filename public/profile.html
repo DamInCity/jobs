@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Manage your JobsHub profile, CV, and AI-tailored resumes.">
+  <title>Profile - JobsHub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23FF4F5E'/><text x='50' y='68' text-anchor='middle' font-size='52' font-family='system-ui' font-weight='800' fill='white'>J</text></svg>">
+  <style>
+    .profile-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      padding-bottom: 3rem;
+    }
+    @media (min-width: 960px) {
+      .profile-grid {
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+      }
+      .profile-span-2 { grid-column: 1 / -1; }
+    }
+    .profile-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .profile-table th,
+    .profile-table td {
+      text-align: left;
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .profile-table th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .profile-table .changes-cell {
+      color: var(--muted);
+      white-space: pre-line;
+      max-width: 280px;
+      font-size: 0.82rem;
+    }
+    .candidate-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .candidate-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-2);
+    }
+    .candidate-meta {
+      flex: 1;
+      min-width: 180px;
+    }
+    .candidate-meta strong {
+      display: block;
+      color: var(--ink);
+      font-size: 0.95rem;
+    }
+    .candidate-meta span {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .badge-src {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: var(--brand-soft);
+      color: var(--brand);
+    }
+    .badge-src.match { background: var(--mint-soft); color: var(--mint); }
+    .badge-src.recent { background: var(--sky-soft); color: var(--sky); }
+    .form-row-2 {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    @media (min-width: 560px) {
+      .form-row-2 { grid-template-columns: 1fr 1fr; }
+    }
+    .llm-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      margin-bottom: 0.75rem;
+    }
+    .llm-pill.ok { background: var(--mint-soft); color: var(--mint); }
+    .llm-pill.off { background: var(--amber-soft); color: #b45309; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <nav class="nav">
+        <a href="/" class="logo">
+          <span class="logo-mark" aria-hidden="true">J</span>
+          <span class="logo-text">Jobs<span>Hub</span></span>
+        </a>
+
+        <div class="nav-links">
+          <a href="/" class="nav-link" data-nav="jobs">Jobs</a>
+          <a href="/categories" class="nav-link" data-nav="categories">Explore</a>
+          <a href="/alerts" class="nav-link" data-nav="alerts">Alerts</a>
+          <a href="/about" class="nav-link" data-nav="about">About</a>
+        </div>
+
+        <div class="nav-actions">
+          <div class="auth-buttons" id="authButtons">
+            <a href="/login" class="btn btn-ghost">Sign in</a>
+            <a href="/register" class="btn btn-primary">Get started</a>
+          </div>
+          <div class="user-menu hidden" id="userMenu">
+            <button class="user-menu-btn" id="userMenuBtn" type="button">
+              <span class="user-avatar" id="userAvatar">U</span>
+              <span id="userName">User</span>
+              <i class="fas fa-chevron-down" style="font-size:0.65rem;opacity:0.5"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown">
+              <a href="/"><i class="fas fa-briefcase"></i> Browse jobs</a>
+              <a href="/alerts"><i class="fas fa-bell"></i> Your alerts</a>
+              <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+              <hr>
+              <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign out</a>
+            </div>
+          </div>
+          <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Menu">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="/" class="mobile-nav-link">Jobs</a>
+    <a href="/categories" class="mobile-nav-link">Explore</a>
+    <a href="/alerts" class="mobile-nav-link">Alerts</a>
+    <a href="/profile" class="mobile-nav-link">Profile</a>
+    <a href="/about" class="mobile-nav-link">About</a>
+    <hr style="border:none;border-top:1px solid var(--border);margin:0.5rem 0">
+    <div class="mobile-auth" id="mobileAuth">
+      <a href="/login" class="btn btn-ghost btn-block">Sign in</a>
+      <a href="/register" class="btn btn-primary btn-block">Get started</a>
+    </div>
+  </div>
+
+  <main class="page-main">
+    <section class="page-hero">
+      <div class="container">
+        <span class="section-eyebrow" style="display:inline-block;margin-bottom:0.75rem">Your account</span>
+        <h1 class="page-title">Profile</h1>
+        <p class="page-subtitle">
+          Manage your CV, skill profile, and AI-tailored resumes for matching opportunities.
+        </p>
+      </div>
+    </section>
+
+    <section class="container alerts-page" id="profilePage">
+      <div class="loading-state" id="profileLoading">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading profile…</p>
+      </div>
+
+      <div id="profileGuest" class="hidden">
+        <div class="alerts-empty-card">
+          <i class="fas fa-user"></i>
+          <h2>Sign in to view your profile</h2>
+          <p>Upload a CV, confirm skills, and generate tailored resumes from the bot or here.</p>
+          <div class="alerts-empty-actions">
+            <a href="/login?redirect=/profile" class="btn btn-primary">Sign in</a>
+            <a href="/register?redirect=/profile" class="btn btn-ghost">Create free account</a>
+          </div>
+        </div>
+      </div>
+
+      <div id="profileApp" class="hidden">
+        <div class="profile-grid">
+
+          <!-- Account -->
+          <div class="alerts-panel">
+            <h2 class="alerts-panel-title"><i class="fas fa-id-card"></i> Account</h2>
+            <form id="accountForm" class="alerts-form" novalidate>
+              <div class="form-group">
+                <label class="form-label" for="profileName">Display name</label>
+                <input class="form-input" type="text" id="profileName" maxlength="120" autocomplete="name">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="profileEmail">Email</label>
+                <input class="form-input" type="email" id="profileEmail" readonly>
+                <p class="form-hint">Change email below (requires password).</p>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-save"></i> Save name
+              </button>
+            </form>
+
+            <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0">
+
+            <h3 class="profile-section-label" style="margin-bottom:0.5rem">Change email</h3>
+            <form id="emailForm" class="alerts-form" novalidate>
+              <div class="form-group">
+                <label class="form-label" for="newEmail">New email</label>
+                <input class="form-input" type="email" id="newEmail" required autocomplete="email">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="emailPassword">Current password</label>
+                <input class="form-input" type="password" id="emailPassword" required autocomplete="current-password">
+              </div>
+              <button type="submit" class="btn btn-ghost btn-sm">Update email</button>
+            </form>
+
+            <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0">
+
+            <h3 class="profile-section-label" style="margin-bottom:0.5rem">Change password</h3>
+            <form id="passwordForm" class="alerts-form" novalidate>
+              <div class="form-group">
+                <label class="form-label" for="currentPassword">Current password</label>
+                <input class="form-input" type="password" id="currentPassword" required autocomplete="current-password">
+              </div>
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label class="form-label" for="newPassword">New password</label>
+                  <input class="form-input" type="password" id="newPassword" required minlength="8" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="confirmPassword">Confirm</label>
+                  <input class="form-input" type="password" id="confirmPassword" required minlength="8" autocomplete="new-password">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-ghost btn-sm">Update password</button>
+            </form>
+          </div>
+
+          <!-- Master CV + skill profile -->
+          <div class="alerts-panel">
+            <h2 class="alerts-panel-title"><i class="fas fa-file-alt"></i> Master CV</h2>
+            <p class="text-muted" id="cvStatus">No CV uploaded yet.</p>
+            <form id="cvForm" class="cv-form">
+              <input type="file" id="cvFile" accept=".pdf,.doc,.docx,application/pdf" hidden>
+              <div class="cv-actions">
+                <button type="button" class="btn btn-primary btn-sm" id="cvPickBtn">
+                  <i class="fas fa-upload"></i> Upload CV
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm hidden" id="cvRemoveBtn">
+                  <i class="fas fa-trash"></i> Remove
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm hidden" id="parseResumeBtn">
+                  <i class="fas fa-brain"></i> Parse for AI
+                </button>
+              </div>
+              <p class="form-hint">PDF or Word, max 5MB. This is the source for Telegram <code>/resume</code> tailoring.</p>
+            </form>
+
+            <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0">
+
+            <h3 class="alerts-panel-title" style="font-size:1rem;margin-bottom:0.5rem">
+              <i class="fas fa-user-check"></i> Skill profile
+            </h3>
+            <p class="text-muted" id="profileStatusLine">Skills power job matching.</p>
+            <div id="profileDetails" class="profile-details">
+              <p id="profileSummary" class="profile-summary"></p>
+              <p class="profile-meta"><span id="profileSeniority"></span></p>
+
+              <p class="profile-section-label">Categories</p>
+              <div class="profile-tags" id="profileCategories"></div>
+
+              <p class="profile-section-label">Skills</p>
+              <div class="profile-tags profile-skills-editable" id="profileSkills"></div>
+              <div class="skill-add-row">
+                <input class="form-input" type="text" id="skillInput" placeholder="e.g. React, nursing" maxlength="60" autocomplete="off">
+                <button type="button" class="btn btn-primary btn-sm" id="addSkillBtn">
+                  <i class="fas fa-plus"></i> Add
+                </button>
+              </div>
+
+              <p class="profile-section-label">Locations</p>
+              <div class="profile-tags" id="profileLocations"></div>
+
+              <div class="cv-actions profile-confirm-actions" style="margin-top:0.75rem">
+                <button type="button" class="btn btn-primary btn-sm hidden" id="confirmProfileBtn">
+                  <i class="fas fa-check"></i> Confirm profile
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm hidden" id="reprofileBtn">
+                  <i class="fas fa-sync"></i> Re-profile CV
+                </button>
+                <a href="/alerts" class="btn btn-ghost btn-sm">
+                  <i class="fas fa-bell"></i> Manage alerts
+                </a>
+              </div>
+            </div>
+
+            <p class="form-hint" style="margin-top:1rem" id="telegramHint">
+              Telegram: link from <a href="/alerts">Job Alerts</a> for digests and <code>/resume</code>.
+            </p>
+          </div>
+
+          <!-- Tailor for a job -->
+          <div class="alerts-panel profile-span-2">
+            <h2 class="alerts-panel-title"><i class="fas fa-wand-magic-sparkles"></i> Tailor CV for a job</h2>
+            <div id="llmStatus" class="llm-pill off">
+              <i class="fas fa-circle-notch"></i> Checking AI…
+            </div>
+            <p class="text-muted" style="margin-bottom:1rem">
+              Pick a matching or saved role. We rewrite your master CV toward the job description (no invented experience) and produce a PDF.
+              Same flow as Telegram <strong>/resume</strong>.
+            </p>
+            <div id="candidatesEmpty" class="text-muted hidden">
+              No candidates yet. <a href="/">Browse jobs</a> and save a few, or set preferences on <a href="/alerts">Alerts</a>.
+            </div>
+            <div class="candidate-list" id="candidatesList"></div>
+          </div>
+
+          <!-- History -->
+          <div class="alerts-panel profile-span-2">
+            <h2 class="alerts-panel-title"><i class="fas fa-history"></i> Tailored resumes</h2>
+            <div id="tailoredEmpty" class="text-muted">No tailored CVs yet. Generate one above or via Telegram <code>/resume</code>.</div>
+            <div class="table-wrap" id="tailoredWrap" style="overflow-x:auto">
+              <table class="profile-table hidden" id="tailoredTable">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Role</th>
+                    <th>What changed</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="tailoredBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-section">
+          <h3 class="footer-logo">
+            <span class="logo-icon">💼</span>
+            JobsHub
+          </h3>
+          <p>Find your dream job from our curated list of opportunities from top companies.</p>
+        </div>
+        <div class="footer-section">
+          <h4>For Job Seekers</h4>
+          <ul>
+            <li><a href="/">Browse Jobs</a></li>
+            <li><a href="/categories">Categories</a></li>
+            <li><a href="/alerts">Job Alerts</a></li>
+            <li><a href="/profile">Profile</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="/about">About Us</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; <span id="year"></span> JobsHub. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/profile-page.js"></script>
+</body>
+</html>

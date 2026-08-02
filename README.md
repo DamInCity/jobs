@@ -70,7 +70,14 @@ JWT_EXPIRES_IN=7d
 # Admin credentials (for initial setup)
 ADMIN_EMAIL=admin@jobswebsite.com
 ADMIN_PASSWORD=changethispassword
+
+# SiliconFlow (CV profiling + /resume tailor) — https://cloud.siliconflow.cn
+SILICONFLOW_API_KEY=
+SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
+SILICONFLOW_MODEL=Qwen/Qwen2.5-72B-Instruct
 ```
+
+Profile page: `/profile`. Telegram: `/resume` after linking and uploading a master CV.
 
 ### 3. Set Up Database
 
@@ -199,6 +206,12 @@ jobs-website/
 | POST | `/api/users/login` | User login |
 | GET | `/api/users/profile` | Get user profile |
 | PUT | `/api/users/profile` | Update profile |
+| POST | `/api/users/cv` | Upload master CV |
+| POST | `/api/users/resume/parse` | Parse master CV to structured resume (LLM) |
+| POST | `/api/users/resume/tailor` | Tailor CV for a job (`{ job_id }`) → PDF |
+| GET | `/api/users/resume/candidates` | Jobs to tailor against (saved + matches) |
+| GET | `/api/users/resume/tailored` | List tailored resume history |
+| GET | `/api/users/resume/tailored/:id/download` | Download tailored PDF |
 | GET | `/api/users/saved-jobs` | List saved jobs |
 | POST | `/api/users/saved-jobs/:jobId` | Save a job |
 | DELETE | `/api/users/saved-jobs/:jobId` | Remove saved job |
@@ -307,7 +320,7 @@ pm2 startup
 - [ ] Elasticsearch for advanced search
 - [ ] Payment integration for featured listings
 - [ ] Company profiles and dashboards
-- [ ] Resume builder (optional)
+- [x] Profile hub + AI resume tailor (`/profile`, Telegram `/resume`, SiliconFlow)
 - [ ] API documentation with Swagger
 - [ ] Webhook integrations
 - [ ] Multi-language support
