@@ -65,7 +65,7 @@ Apply these before or during ingest (the API re-runs the same rules server-side)
 9. Set `source` to e.g. `n8n-google` or `n8n-board`
 10. Default expiry = posted + 30 days
 
-Dry-run:
+Dry-run (use a real employer apply URL — `example.com` hosts are rejected):
 
 ```bash
 curl -sS -X POST https://jobs.usseo.one/api/ingest/preprocess \
@@ -74,8 +74,8 @@ curl -sS -X POST https://jobs.usseo.one/api/ingest/preprocess \
   -d '{
     "jobs": [{
       "title": "Registered Nurse",
-      "company": "City Hospital",
-      "url": "https://example.com/jobs/rn?utm_source=google",
+      "company": "Kenyatta National Hospital",
+      "url": "https://knh.or.ke/index.php/careers/rn-ward?utm_source=google",
       "location": "Nairobi",
       "description": "Ward nursing role",
       "categoryHint": "healthcare"
@@ -93,8 +93,8 @@ curl -sS -X POST https://jobs.usseo.one/api/ingest/jobs \
     "source": "n8n-google",
     "jobs": [{
       "title": "Registered Nurse",
-      "company_name": "City Hospital",
-      "external_link": "https://example.com/jobs/rn",
+      "company_name": "Kenyatta National Hospital",
+      "external_link": "https://knh.or.ke/index.php/careers/rn-ward",
       "location": "Nairobi, Kenya",
       "job_type": "onsite",
       "description": "Ward nursing role",

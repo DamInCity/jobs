@@ -47,6 +47,9 @@ function preprocessJob(raw, options = {}) {
 
   externalLink = normalizeUrl(externalLink);
   if (!externalLink) return { ok: false, reason: 'invalid_url' };
+  if (isBlockedExampleHost(externalLink)) {
+    return { ok: false, reason: 'example_domain_blocked' };
+  }
 
   const textBlob = `${title} ${company} ${input.description || ''}`;
   for (const re of SPAM_PATTERNS) {
@@ -156,6 +159,24 @@ function preprocessJob(raw, options = {}) {
   };
 
   return { ok: true, job };
+}
+
+const BLOCKED_EXAMPLE_HOSTS = new Set([
+  'example.com',
+  'example.org',
+  'example.net',
+  'www.example.com',
+  'www.example.org',
+  'www.example.net',
+]);
+
+function isBlockedExampleHost(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return BLOCKED_EXAMPLE_HOSTS.has(host) || host.endsWith('.example.com');
+  } catch {
+    return false;
+  }
 }
 
 function normalizeUrl(url) {
