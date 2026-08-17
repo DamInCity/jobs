@@ -19,6 +19,10 @@ router.get('/', optionalAuth, searchValidation.jobs, asyncHandler(async (req, re
     search,
     category,
     location,
+    county,
+    country_code,
+    source_type,
+    kenya_only,
     job_type,
     salary_min,
     salary_max,
@@ -40,7 +44,7 @@ router.get('/', optionalAuth, searchValidation.jobs, asyncHandler(async (req, re
   // Full-text search
   if (search) {
     whereConditions.push(`
-      to_tsvector('english', coalesce(j.title, '') || ' ' || coalesce(j.company_name, '') || ' ' || coalesce(j.description, '') || ' ' || coalesce(j.location, ''))
+      to_tsvector('english', coalesce(j.title, '') || ' ' || coalesce(j.company_name, '') || ' ' || coalesce(j.description, '') || ' ' || coalesce(j.location, '') || ' ' || coalesce(j.county, ''))
       @@ plainto_tsquery('english', $${paramIndex++})
     `);
     params.push(search);
@@ -55,13 +59,50 @@ router.get('/', optionalAuth, searchValidation.jobs, asyncHandler(async (req, re
 
   // Location filter (partial match)
   if (location) {
-    whereConditions.push(`j.location ILIKE $${paramIndex++}`);
+    whereConditions.push(`(j.location ILIKE $${paramIndex} OR j.county ILIKE $${paramIndex})`);
     params.push(`%${location}%`);
+    paramIndex++;
+  }
+
+  // County (exact-ish)
+  if (county) {
+    whereConditions.push(`j.county ILIKE $${paramIndex++}`);
+    params.push(county);
+  }
+
+  if (country_code) {
+    whereConditions.push(`UPPER(j.country_code) = UPPER($${paramIndex++})`);
+    params.push(String(country_code).slice(0, 2));
+  }
+
+  if (source_type) {
+    const types = String(source_type).split(',').map((t) => t.trim().toUpperCase()).filter(Boolean);
+    if (types.length === 1) {
+      whereConditions.push(`UPPER(j.source_type) = $${paramIndex++}`);
+      params.push(types[0]);
+    } else if (types.length > 1) {
+      whereConditions.push(`UPPER(j.source_type) = ANY($${paramIndex++})`);
+      params.push(types);
+    }
+  }
+
+  // Kenya-focused slice
+  if (kenya_only === 'true' || kenya_only === '1') {
+    whereConditions.push(`(
+      UPPER(COALESCE(j.country_code, '')) = 'KE'
+      OR j.location ILIKE '%kenya%'
+      OR j.location ILIKE '%nairobi%'
+      OR j.location ILIKE '%mombasa%'
+      OR j.county IS NOT NULL
+      OR j.source ILIKE 'kenya:%'
+      OR j.source ILIKE '%myjobmag%'
+      OR j.source ILIKE '%brightermonday%'
+    )`);
   }
 
   // Job type filter (can be comma-separated)
   if (job_type) {
-    const types = job_type.split(',').map(t => t.trim());
+    const types = job_type.split(',').map((t) => t.trim());
     whereConditions.push(`j.job_type = ANY($${paramIndex++})`);
     params.push(types);
   }
@@ -109,7 +150,7 @@ router.get('/', optionalAuth, searchValidation.jobs, asyncHandler(async (req, re
     whereConditions.push('j.is_featured = true');
   }
 
-  const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+  const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
   // Sort options
   const allowedSorts = {
@@ -129,8 +170,10 @@ router.get('/', optionalAuth, searchValidation.jobs, asyncHandler(async (req, re
     db.query(`
       SELECT 
         j.id, j.title, j.slug, j.company_name, j.company_logo_url, 
-        j.location, j.job_type, j.salary_min, j.salary_max, j.salary_currency, j.salary_period,
+        j.location, j.county, j.country_code, j.job_type,
+        j.salary_min, j.salary_max, j.salary_currency, j.salary_period,
         j.posted_date, j.expiry_date, j.view_count, j.is_featured,
+        j.source, j.source_type, j.verification_status, j.is_aggregated,
         c.name as category_name, c.slug as category_slug,
         CASE 
           WHEN j.expiry_date <= CURRENT_TIMESTAMP + INTERVAL '3 days' THEN true 
@@ -172,6 +215,10 @@ router.get('/', optionalAuth, searchValidation.jobs, asyncHandler(async (req, re
         search,
         category,
         location,
+        county,
+        country_code,
+        source_type,
+        kenya_only,
         job_type,
         salary_min,
         salary_max,
@@ -183,12 +230,54 @@ router.get('/', optionalAuth, searchValidation.jobs, asyncHandler(async (req, re
   });
 }));
 
+// Facets for Kenya filters (must be before /:identifier)
+router.get('/meta/facets', asyncHandler(async (req, res) => {
+  const [counties, sourceTypes, kenyaCount] = await Promise.all([
+    db.query(`
+      SELECT county AS value, COUNT(*)::int AS count
+      FROM jobs
+      WHERE status = 'active' AND county IS NOT NULL AND county <> ''
+      GROUP BY county
+      ORDER BY count DESC, county ASC
+      LIMIT 47
+    `),
+    db.query(`
+      SELECT COALESCE(source_type, 'BOARD') AS value, COUNT(*)::int AS count
+      FROM jobs
+      WHERE status = 'active'
+      GROUP BY COALESCE(source_type, 'BOARD')
+      ORDER BY count DESC
+    `),
+    db.query(`
+      SELECT COUNT(*)::int AS count FROM jobs
+      WHERE status = 'active'
+        AND (
+          UPPER(COALESCE(country_code, '')) = 'KE'
+          OR location ILIKE '%kenya%'
+          OR county IS NOT NULL
+          OR source ILIKE 'kenya:%'
+          OR source ILIKE '%myjobmag%'
+        )
+    `),
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      counties: counties.rows,
+      source_types: sourceTypes.rows,
+      kenya_jobs: kenyaCount.rows[0]?.count || 0,
+    },
+  });
+}));
+
 // Get trending jobs (most viewed in last 48 hours)
 router.get('/trending', asyncHandler(async (req, res) => {
   const result = await db.query(`
     SELECT 
       j.id, j.title, j.slug, j.company_name, j.company_logo_url, 
-      j.location, j.job_type, j.view_count, j.is_featured,
+      j.location, j.county, j.country_code, j.job_type, j.view_count, j.is_featured,
+      j.source_type, j.verification_status,
       c.name as category_name, c.slug as category_slug
     FROM jobs j
     LEFT JOIN categories c ON j.category_id = c.id
@@ -209,8 +298,9 @@ router.get('/featured', asyncHandler(async (req, res) => {
   const result = await db.query(`
     SELECT 
       j.id, j.title, j.slug, j.company_name, j.company_logo_url, 
-      j.location, j.job_type, j.salary_min, j.salary_max, j.salary_currency,
-      j.posted_date, j.is_featured,
+      j.location, j.county, j.country_code, j.job_type,
+      j.salary_min, j.salary_max, j.salary_currency,
+      j.posted_date, j.is_featured, j.source_type, j.verification_status,
       c.name as category_name, c.slug as category_slug
     FROM jobs j
     LEFT JOIN categories c ON j.category_id = c.id
@@ -251,7 +341,8 @@ router.get('/:identifier', optionalAuth, asyncHandler(async (req, res) => {
   const relatedResult = await db.query(`
     SELECT 
       j.id, j.title, j.slug, j.company_name, j.company_logo_url, 
-      j.location, j.job_type, j.posted_date,
+      j.location, j.county, j.country_code, j.job_type, j.posted_date,
+      j.source_type, j.verification_status,
       c.name as category_name
     FROM jobs j
     LEFT JOIN categories c ON j.category_id = c.id
@@ -311,8 +402,8 @@ router.post('/:id/click', optionalAuth, asyncHandler(async (req, res) => {
 
   // Get the external link to redirect to
   const result = await db.query('SELECT external_link FROM jobs WHERE id = $1', [id]);
-  
-  res.json({ 
+
+  res.json({
     success: true,
     data: {
       redirectUrl: result.rows[0]?.external_link,

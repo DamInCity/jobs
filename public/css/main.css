@@ -3387,6 +3387,111 @@ body.mobile-menu-open {
 }
 
 /* ============================================
+   KENYA LOCAL HUB + SOURCE BADGES
+   ============================================ */
+
+.job-tag.badge-verified {
+  background: var(--mint-soft);
+  color: #0b7a58;
+}
+.job-tag.badge-gov {
+  background: var(--violet-soft);
+  color: #4c3fb8;
+}
+.job-tag.badge-ngo {
+  background: var(--sky-soft);
+  color: #1c6fb5;
+}
+.job-tag.badge-career {
+  background: var(--amber-soft);
+  color: #9a6400;
+}
+.job-tag.badge-ke {
+  background: var(--brand-soft);
+  color: var(--brand-hover);
+}
+
+.filter-select {
+  width: 100%;
+  margin: 0.35rem 0 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.filter-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+.kenya-hub-card {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1.25rem;
+  padding: 1.25rem 1.35rem;
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(255, 79, 94, 0.08), transparent 55%),
+    radial-gradient(100% 100% at 100% 100%, rgba(108, 92, 231, 0.08), transparent 50%),
+    var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(20, 18, 26, 0.04);
+}
+.kenya-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.btn-sm {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  border-radius: 999px;
+}
+.kenya-county-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.kenya-chip {
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.kenya-chip em {
+  font-style: normal;
+  opacity: 0.55;
+  margin-left: 0.2rem;
+  font-weight: 500;
+}
+.kenya-chip:hover,
+.kenya-chip.active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand-hover);
+}
+.muted-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 820px) {
+  .kenya-hub-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
    REDUCED MOTION
    ============================================ */
 

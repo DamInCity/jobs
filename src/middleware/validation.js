@@ -195,10 +195,29 @@ const searchValidation = {
       .isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
     query('job_type')
       .optional()
-      .isIn(['remote', 'hybrid', 'onsite']).withMessage('Invalid job type'),
+      .custom((value) => {
+        const parts = String(value).split(',').map((t) => t.trim()).filter(Boolean);
+        return parts.every((t) => ['remote', 'hybrid', 'onsite'].includes(t));
+      }).withMessage('Invalid job type'),
     query('category')
       .optional()
-      .isUUID().withMessage('Category must be a valid UUID'),
+      .isString()
+      .isLength({ min: 1, max: 120 }).withMessage('Invalid category'),
+    query('county')
+      .optional()
+      .isString()
+      .isLength({ min: 2, max: 100 }).withMessage('Invalid county'),
+    query('country_code')
+      .optional()
+      .isString()
+      .isLength({ min: 2, max: 2 }).withMessage('country_code must be 2 letters'),
+    query('source_type')
+      .optional()
+      .isString()
+      .isLength({ min: 2, max: 40 }).withMessage('Invalid source_type'),
+    query('kenya_only')
+      .optional()
+      .isIn(['true', 'false', '1', '0']).withMessage('kenya_only must be boolean-like'),
     query('salary_min')
       .optional()
       .isInt({ min: 0 }).withMessage('Minimum salary must be a positive number'),

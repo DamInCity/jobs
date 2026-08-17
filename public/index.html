@@ -184,6 +184,32 @@
       </div>
     </section>
 
+    <!-- Kenya local hub -->
+    <section class="section kenya-hub" id="kenyaHubSection" style="padding-top: 0.25rem; padding-bottom: 0.5rem;">
+      <div class="container">
+        <div class="kenya-hub-card">
+          <div class="kenya-hub-copy">
+            <span class="section-eyebrow">Kenya</span>
+            <h2 class="section-title" style="margin-bottom:0.35rem">Jobs across the country</h2>
+            <p class="section-subtitle" style="margin-bottom:0.75rem">
+              Local roles from company career pages, public sector, NGOs, and Kenyan boards —
+              <strong id="kenyaJobsCount">—</strong> active Kenya-tagged listings right now.
+            </p>
+            <div class="kenya-presets" role="group" aria-label="Kenya shortcuts">
+              <button type="button" class="btn btn-primary btn-sm" onclick="applyKenyaPreset('all')">All Kenya</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="applyKenyaPreset('nairobi')">Nairobi</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="applyKenyaPreset('government')">Government</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="applyKenyaPreset('ngo')">NGO</button>
+            </div>
+          </div>
+          <div class="kenya-county-wrap">
+            <p class="filter-label" style="margin-bottom:0.4rem">Browse by county</p>
+            <div class="kenya-county-chips" id="kenyaCountyChips"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Featured -->
     <section class="section" id="featuredSection" style="padding-top: 0.5rem;">
       <div class="container">
@@ -269,6 +295,28 @@
                   <span class="checkmark"></span>
                   On-site
                 </label>
+              </div>
+            </div>
+
+            <div class="filter-group">
+              <h4 class="filter-title">
+                <i class="fas fa-flag"></i>
+                Kenya local
+              </h4>
+              <div class="filter-options">
+                <label class="filter-checkbox">
+                  <input type="checkbox" id="kenyaOnlyFilter" name="kenya_only" value="1">
+                  <span class="checkmark"></span>
+                  Kenya jobs only
+                </label>
+                <label class="filter-label" for="countyFilter">County</label>
+                <select id="countyFilter" class="filter-select" aria-label="County">
+                  <option value="">All counties</option>
+                </select>
+                <label class="filter-label" for="sourceTypeFilter">Source</label>
+                <select id="sourceTypeFilter" class="filter-select" aria-label="Source type">
+                  <option value="">All sources</option>
+                </select>
               </div>
             </div>
 

@@ -16,10 +16,14 @@ const state = {
     posted_after: '',
     salary_min: '',
     salary_max: '',
+    county: '',
+    source_type: '',
+    kenya_only: false,
   },
   sort: 'posted_date',
   order: 'desc',
   savedIds: new Set(),
+  facets: { counties: [], source_types: [], kenya_jobs: 0 },
 };
 
 // ============================================
@@ -106,6 +110,43 @@ function getJobTypeLabel(type) {
     onsite: 'On-site',
   };
   return labels[type] || type || 'On-site';
+}
+
+function sourceTypeLabel(type) {
+  const t = String(type || '').toUpperCase();
+  const map = {
+    DIRECT: 'Verified employer',
+    COMPANY_CAREER: 'Company site',
+    GOVERNMENT: 'Government',
+    NGO: 'NGO',
+    RECRUITMENT_AGENCY: 'Recruiter',
+    BOARD: 'Job board',
+    API: 'Aggregated',
+    PARTNER: 'Partner',
+    USER_SUBMITTED: 'Community',
+  };
+  return map[t] || (t ? t.replace(/_/g, ' ') : '');
+}
+
+function verificationBadge(job) {
+  const v = String(job.verification_status || '').toLowerCase();
+  const st = String(job.source_type || '').toUpperCase();
+  if (v === 'verified' || st === 'DIRECT') {
+    return '<span class="job-tag badge-verified" title="Posted by a verified employer">Verified</span>';
+  }
+  if (st === 'GOVERNMENT') {
+    return '<span class="job-tag badge-gov">Public sector</span>';
+  }
+  if (st === 'NGO') {
+    return '<span class="job-tag badge-ngo">NGO</span>';
+  }
+  if (st === 'COMPANY_CAREER') {
+    return '<span class="job-tag badge-career">Company site</span>';
+  }
+  if (job.country_code === 'KE' || job.county) {
+    return '<span class="job-tag badge-ke">Kenya</span>';
+  }
+  return '';
 }
 
 function logoHue(name) {
@@ -218,9 +259,12 @@ function createJobCard(job) {
   const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency, job.salary_period);
   const title = escapeHtml(job.title);
   const company = escapeHtml(job.company_name);
-  const location = escapeHtml(job.location || 'Location flexible');
+  const locParts = [job.county, job.location].filter(Boolean);
+  const uniqueLoc = [...new Set(locParts.map((s) => String(s).trim()))].join(' · ') || 'Location flexible';
+  const location = escapeHtml(uniqueLoc);
   const category = job.category_name ? escapeHtml(job.category_name) : '';
   const isSaved = state.savedIds.has(String(job.id));
+  const sourceBadge = verificationBadge(job);
 
   const logoHtml = job.company_logo_url
     ? `<img src="${escapeHtml(job.company_logo_url)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'job-logo-placeholder hue-${hue}',textContent:'${logoPlaceholder}'}))">`
@@ -257,6 +301,7 @@ function createJobCard(job) {
 
       <div class="job-tags">
         <span class="job-tag ${jobTypeClass}">${getJobTypeLabel(job.job_type)}</span>
+        ${sourceBadge}
         ${job.is_featured ? '<span class="job-tag featured">Featured</span>' : ''}
         ${job.is_new ? '<span class="job-tag new">New</span>' : ''}
         ${job.expiring_soon ? '<span class="job-tag expiring">Closing soon</span>' : ''}
@@ -424,6 +469,9 @@ async function loadJobs() {
     if (state.filters.posted_after) params.append('posted_after', state.filters.posted_after);
     if (state.filters.salary_min) params.append('salary_min', state.filters.salary_min);
     if (state.filters.salary_max) params.append('salary_max', state.filters.salary_max);
+    if (state.filters.county) params.append('county', state.filters.county);
+    if (state.filters.source_type) params.append('source_type', state.filters.source_type);
+    if (state.filters.kenya_only) params.append('kenya_only', 'true');
 
     const response = await api(`/jobs?${params.toString()}`);
     const jobs = response.data?.jobs || response.data || [];
@@ -748,6 +796,15 @@ function applyFilters() {
   state.filters.salary_min = document.getElementById('salaryMin')?.value || '';
   state.filters.salary_max = document.getElementById('salaryMax')?.value || '';
 
+  const countySel = document.getElementById('countyFilter');
+  state.filters.county = countySel?.value || '';
+
+  const sourceSel = document.getElementById('sourceTypeFilter');
+  state.filters.source_type = sourceSel?.value || '';
+
+  const kenyaCb = document.getElementById('kenyaOnlyFilter');
+  state.filters.kenya_only = Boolean(kenyaCb?.checked);
+
   state.currentPage = 1;
   loadJobs();
   updateURL();
@@ -763,6 +820,9 @@ function clearFilters() {
     posted_after: '',
     salary_min: '',
     salary_max: '',
+    county: '',
+    source_type: '',
+    kenya_only: false,
   };
   state.currentPage = 1;
 
@@ -780,9 +840,14 @@ function clearFilters() {
   const loc = document.getElementById('locationInput');
   if (search) search.value = '';
   if (loc) loc.value = '';
+  const countySel = document.getElementById('countyFilter');
+  const sourceSel = document.getElementById('sourceTypeFilter');
+  if (countySel) countySel.value = '';
+  if (sourceSel) sourceSel.value = '';
 
   document.querySelectorAll('.quick-filter').forEach((btn) => btn.classList.remove('active'));
   document.querySelector('.quick-filter[data-filter="all"]')?.classList.add('active');
+  document.querySelectorAll('.kenya-chip').forEach((btn) => btn.classList.remove('active'));
 
   loadJobs();
   updateURL();
@@ -810,6 +875,9 @@ function updateURL() {
   if (state.filters.category) params.set('category', state.filters.category);
   if (state.filters.job_type.length) params.set('type', state.filters.job_type.join(','));
   if (state.filters.posted_after) params.set('posted', state.filters.posted_after);
+  if (state.filters.county) params.set('county', state.filters.county);
+  if (state.filters.source_type) params.set('source_type', state.filters.source_type);
+  if (state.filters.kenya_only) params.set('kenya', '1');
   if (state.currentPage > 1) params.set('page', state.currentPage);
 
   const newURL = params.toString() ? `?${params.toString()}` : window.location.pathname;
@@ -824,6 +892,9 @@ function loadFromURL() {
   state.filters.category = params.get('category') || '';
   state.filters.job_type = params.get('type')?.split(',').filter(Boolean) || [];
   state.filters.posted_after = params.get('posted') || '';
+  state.filters.county = params.get('county') || '';
+  state.filters.source_type = params.get('source_type') || '';
+  state.filters.kenya_only = params.get('kenya') === '1' || params.get('kenya') === 'true';
   state.currentPage = parseInt(params.get('page'), 10) || 1;
 
   const searchEl = document.getElementById('searchInput');
@@ -831,11 +902,110 @@ function loadFromURL() {
   if (searchEl) searchEl.value = state.filters.search;
   if (locEl) locEl.value = state.filters.location;
 
+  const countySel = document.getElementById('countyFilter');
+  const sourceSel = document.getElementById('sourceTypeFilter');
+  const kenyaCb = document.getElementById('kenyaOnlyFilter');
+  if (countySel && state.filters.county) countySel.value = state.filters.county;
+  if (sourceSel && state.filters.source_type) sourceSel.value = state.filters.source_type;
+  if (kenyaCb) kenyaCb.checked = state.filters.kenya_only;
+
   if (state.filters.job_type.length === 1) {
     document.querySelectorAll('.quick-filter').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.filter === state.filters.job_type[0]);
     });
   }
+}
+
+async function loadFacets() {
+  try {
+    const res = await api('/jobs/meta/facets');
+    state.facets = res.data || { counties: [], source_types: [], kenya_jobs: 0 };
+
+    const countySel = document.getElementById('countyFilter');
+    if (countySel) {
+      const current = state.filters.county || countySel.value;
+      const opts = ['<option value="">All counties</option>']
+        .concat(
+          (state.facets.counties || []).map(
+            (c) =>
+              `<option value="${escapeHtml(c.value)}" ${c.value === current ? 'selected' : ''}>${escapeHtml(c.value)} (${c.count})</option>`
+          )
+        );
+      countySel.innerHTML = opts.join('');
+    }
+
+    const sourceSel = document.getElementById('sourceTypeFilter');
+    if (sourceSel) {
+      const current = state.filters.source_type || sourceSel.value;
+      const opts = ['<option value="">All sources</option>']
+        .concat(
+          (state.facets.source_types || []).map(
+            (s) =>
+              `<option value="${escapeHtml(s.value)}" ${s.value === current ? 'selected' : ''}>${escapeHtml(sourceTypeLabel(s.value))} (${s.count})</option>`
+          )
+        );
+      sourceSel.innerHTML = opts.join('');
+    }
+
+    const kenyaStat = document.getElementById('kenyaJobsCount');
+    if (kenyaStat) kenyaStat.textContent = String(state.facets.kenya_jobs || 0);
+
+    renderKenyaCountyChips();
+  } catch (err) {
+    console.warn('Facets unavailable', err);
+  }
+}
+
+function renderKenyaCountyChips() {
+  const host = document.getElementById('kenyaCountyChips');
+  if (!host) return;
+  const top = (state.facets.counties || []).slice(0, 8);
+  if (!top.length) {
+    host.innerHTML = '<span class="muted-hint">County filters appear as local jobs are ingested.</span>';
+    return;
+  }
+  host.innerHTML = top
+    .map(
+      (c) =>
+        `<button type="button" class="kenya-chip ${state.filters.county === c.value ? 'active' : ''}" data-county="${escapeHtml(c.value)}">${escapeHtml(c.value)} <em>${c.count}</em></button>`
+    )
+    .join('');
+  host.querySelectorAll('.kenya-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const county = btn.dataset.county;
+      state.filters.county = state.filters.county === county ? '' : county;
+      state.filters.kenya_only = true;
+      state.currentPage = 1;
+      const countySel = document.getElementById('countyFilter');
+      const kenyaCb = document.getElementById('kenyaOnlyFilter');
+      if (countySel) countySel.value = state.filters.county;
+      if (kenyaCb) kenyaCb.checked = true;
+      host.querySelectorAll('.kenya-chip').forEach((b) => b.classList.toggle('active', b.dataset.county === state.filters.county));
+      loadJobs();
+      updateURL();
+      document.getElementById('exploreSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+}
+
+function applyKenyaPreset(kind) {
+  state.filters.kenya_only = true;
+  state.filters.source_type = '';
+  state.filters.county = '';
+  if (kind === 'government') state.filters.source_type = 'GOVERNMENT';
+  if (kind === 'ngo') state.filters.source_type = 'NGO';
+  if (kind === 'nairobi') state.filters.county = 'Nairobi';
+  // kind === 'all' keeps kenya_only only
+  state.currentPage = 1;
+  const kenyaCb = document.getElementById('kenyaOnlyFilter');
+  const sourceSel = document.getElementById('sourceTypeFilter');
+  const countySel = document.getElementById('countyFilter');
+  if (kenyaCb) kenyaCb.checked = true;
+  if (sourceSel) sourceSel.value = state.filters.source_type;
+  if (countySel) countySel.value = state.filters.county;
+  loadJobs();
+  updateURL();
+  document.getElementById('exploreSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ============================================
@@ -1084,7 +1254,7 @@ async function init() {
   loadFromURL();
   await checkAuth();
 
-  await Promise.all([loadFeaturedJobs(), loadJobs(), loadCategories()]);
+  await Promise.all([loadFeaturedJobs(), loadJobs(), loadCategories(), loadFacets()]);
 
   if (window.location.hash === '#exploreSection') {
     document.getElementById('exploreSection')?.scrollIntoView({ behavior: 'smooth' });
@@ -1103,3 +1273,4 @@ window.loadJobs = loadJobs;
 window.changePage = changePage;
 window.saveJob = saveJob;
 window.trackClick = trackClick;
+window.applyKenyaPreset = applyKenyaPreset;
