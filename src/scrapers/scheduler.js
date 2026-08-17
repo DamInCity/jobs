@@ -18,6 +18,7 @@ const config = require('../config');
 // HTML scrapers (optional — need Puppeteer/Cheerio)
 const BrighterMondayScraper = require('./BrighterMondayScraper');
 const MyJobMagScraper = require('./MyJobMagScraper');
+const KenyaCareerImporter = require('./kenya/KenyaCareerImporter');
 
 // RapidAPI importers
 const JSearchImporter = require('./rapidapi/JSearchImporter');
@@ -33,10 +34,13 @@ const CONFIG = {
 
 // RapidAPI importers need RAPIDAPI_KEY. MyJobMag (Cheerio) works without APIs.
 // BrighterMonday (Puppeteer) stays off unless ENABLE_HTML_SCRAPERS=true.
+// KenyaCareers (upstream orgs) on by default unless DISABLE_KENYA_CAREERS=true.
 const enableHtml = process.env.ENABLE_HTML_SCRAPERS === 'true';
 const hasRapidApi = Boolean(process.env.RAPIDAPI_KEY || process.env.RAPID_API_KEY);
+const enableKenyaCareers = process.env.DISABLE_KENYA_CAREERS !== 'true';
 
 const SCRAPERS = [
+  { name: 'KenyaCareers', Class: KenyaCareerImporter, enabled: enableKenyaCareers },
   { name: 'JSearch', Class: JSearchImporter, enabled: hasRapidApi },
   { name: 'LinkedIn', Class: LinkedInImporter, enabled: hasRapidApi },
   { name: 'JobsAPI14', Class: JobsApi14Importer, enabled: hasRapidApi },

@@ -6,11 +6,32 @@
 const LOCATIONS = [
   { query: 'Kenya', country: 'ke' },
   { query: 'Nairobi', country: 'ke' },
+  { query: 'Mombasa', country: 'ke' },
+  { query: 'Kisumu', country: 'ke' },
+  { query: 'Nakuru', country: 'ke' },
+  { query: 'Eldoret', country: 'ke' },
   { query: 'United States', country: 'us' },
   { query: 'United Kingdom', country: 'gb' },
   { query: 'Germany', country: 'de' },
   { query: 'South Africa', country: 'za' },
   { query: 'remote', country: 'us', workFromHome: true },
+];
+
+/** Kenya-only location stream for scrape:kenya / local bias */
+const KE_LOCATIONS = [
+  { query: 'Kenya', country: 'ke' },
+  { query: 'Nairobi', country: 'ke' },
+  { query: 'Mombasa', country: 'ke' },
+  { query: 'Kisumu', country: 'ke' },
+  { query: 'Nakuru', country: 'ke' },
+  { query: 'Eldoret', country: 'ke' },
+  { query: 'Kiambu', country: 'ke' },
+  { query: 'Machakos', country: 'ke' },
+  { query: 'Kilifi', country: 'ke' },
+  { query: 'Kakamega', country: 'ke' },
+  { query: 'Nyeri', country: 'ke' },
+  { query: 'Meru', country: 'ke' },
+  { query: 'remote Kenya', country: 'ke', workFromHome: true },
 ];
 
 /** Balanced title queries with category hints (slug) */
@@ -154,6 +175,7 @@ function api14Queries() {
 
 module.exports = {
   LOCATIONS,
+  KE_LOCATIONS,
   TITLES,
   titleQueries,
   hintForTitle,

@@ -1,118 +1,62 @@
 # Job Scraper / Importer System
 
-Imports job listings into JobsHub from RapidAPI sources (primary) and optional HTML scrapers (Kenya boards).
+Imports job listings into JobsHub from RapidAPI sources, Kenya upstream career pages, and optional HTML scrapers (Kenya boards).
 
 ## Primary sources
 
 | Source | Type | Notes |
 |--------|------|-------|
+| **KenyaCareers** | Registry + adapters | Upstream orgs in `kenya/sources.json` — **enabled by default** |
 | **MyJobMag** | HTML (Cheerio) | Kenya board; **enabled by default** (no API key) |
 | **JSearch** | RapidAPI | Multi-board via Google for Jobs (`/search-v2`) — needs `RAPIDAPI_KEY` |
 | **LinkedIn** | RapidAPI | Fantastic.jobs LinkedIn feed — needs key |
 | **Jobs API14** | RapidAPI | LinkedIn/Bing/Indeed search paths — needs key |
 | **n8n ingest** | Webhook | `POST /api/ingest/jobs` — see `docs/N8N.md` |
 
-Query streams (balanced across healthcare, education, trades, etc.) live in `src/scrapers/jobStreams.js`.
+Query streams live in `src/scrapers/jobStreams.js` (`KE_LOCATIONS` for Kenya bias).
 
-Set in `.env`:
+- Kenya pack: `docs/KENYA_SOURCES.md`
+- Weekly quality: `docs/SCRAPER_QUALITY.md`
 
 ```env
 RAPIDAPI_KEY=your_rapidapi_key
 RAPIDAPI_MAX_REQUESTS_PER_RUN=80
 INGEST_MAX_JOBS_PER_SOURCE=400
+# DISABLE_KENYA_CAREERS=true
+# ENABLE_HTML_SCRAPERS=true
 ```
-
-> Do not commit API keys. Rotate any key that was shared in chat or logs.
 
 ## Usage
 
 ```bash
-# One-shot ingest (all enabled sources)
 npm run scrape
-
-# Bootstrap larger run
+npm run scrape:kenya
+npm run scrape:kenya:dry
+npm run sources:sync
+npm run scrape:quality
 npm run scrape:bootstrap
-
-# Dry run (no DB writes)
 npm run scrape:dry
-
-# Cap jobs per source
 node src/scrapers/scheduler.js --max-jobs=50
-
-# Single source
-node src/scrapers/scheduler.js --only=JSearch --max-jobs=100
-node src/scrapers/scheduler.js --only=LinkedIn --max-jobs=200
-node src/scrapers/scheduler.js --only=JobsAPI14 --max-jobs=50
-
-# Cron mode (6 AM & 6 PM EAT)
+node src/scrapers/scheduler.js --only=KenyaCareers --max-jobs=100
 npm run scrape:cron
-```
-
-## Optional HTML scrapers
-
-| Site | Scraper | Default |
-|------|---------|---------|
-| BrighterMonday Kenya | Puppeteer | **disabled** |
-| MyJobMag Kenya | Cheerio | **disabled** |
-
-Enable in `src/scrapers/scheduler.js` (`enabled: true`) and install:
-
-```bash
-npm install puppeteer cheerio node-cron p-queue
 ```
 
 ## Architecture
 
 ```
 src/scrapers/
-  BaseScraper.js              # validate + saveJob (dedupe by external_link)
-  categoryMapper.js           # title/taxonomy → category slug
-  scheduler.js                # orchestrates sources + scraper_logs
+  BaseScraper.js
+  scheduler.js
+  preprocessJob.js
+  qualityAssessment.js
+  kenya/
+    sources.json
+    adapters.js
+    KenyaCareerImporter.js
+    syncSources.js
+    counties.js
+    sourceTypes.js
   rapidapi/
-    RapidApiClient.js         # headers, retries, request budget
-    JSearchImporter.js
-    LinkedInImporter.js
-    JobsApi14Importer.js
 ```
 
-Jobs are stored with `source` = `JSearch` | `LinkedIn` | `JobsAPI14` | etc.
-
-## Deduplication
-
-- Unique index on `jobs.external_link`
-- Application-level skip if URL already exists
-- Safe to re-run ingest
-
-## Database
-
-Schema is applied by `npm run migrate` (also auto-runs on app startup if `jobs` is missing).
-
-```bash
-npm run migrate
-npm run seed      # admin user + categories
-```
-
-With Docker Compose, host tools use port **5433** and password from `.env` (`DB_PASSWORD=postgres`).
-
-## Admin API
-
-```bash
-curl -X POST http://localhost:3000/api/admin/scrapers/run \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"maxJobs": 50, "dryRun": false}'
-```
-
-## Troubleshooting
-
-### `relation "jobs" does not exist`
-Run migrations: `npm run migrate` or restart the app container (auto-migrate).
-
-### RapidAPI 429 monthly quota
-Upgrade the plan on RapidAPI or wait for reset. Importers stop retrying monthly-quota errors.
-
-### JSearch 404 on `/search`
-Use `/search-v2` (already configured).
-
-### Empty LinkedIn results
-Use full location names (`United States`, not `US`) and a `time_frame` of `24h` or `7d`.
+Dedup on `jobs.external_link`. Schema via `npm run migrate`.

@@ -14,6 +14,12 @@
     "scrape:dry": "node src/scrapers/scheduler.js --dry-run",
     "scrape:bootstrap": "node src/scrapers/scheduler.js --max-jobs=400",
     "scrape:cron": "node src/scrapers/scheduler.js --cron",
+    "scrape:kenya": "node src/scrapers/kenya/KenyaCareerImporter.js",
+    "scrape:kenya:dry": "node src/scrapers/kenya/KenyaCareerImporter.js --dry-run",
+    "scrape:kenya:bootstrap": "node src/scrapers/kenya/KenyaCareerImporter.js --max-jobs=500",
+    "sources:sync": "node src/scrapers/kenya/syncSources.js",
+    "scrape:quality": "node src/scrapers/qualityAssessment.js",
+    "scrape:quality:strict": "node src/scrapers/qualityAssessment.js --strict",
     "alerts": "node src/jobs/emailAlerts.js",
     "alerts:force": "node src/jobs/emailAlerts.js --force --frequency=all",
     "alerts:test": "node src/jobs/emailAlerts.js --test-loop",
@@ -51,7 +57,7 @@
     "nodemon": "^3.0.2"
   },
   "optionalDependencies": {
-    "cheerio": "^1.0.0-rc.12",
+    "cheerio": "^1.2.0",
     "node-cron": "^3.0.3",
     "p-queue": "^7.4.1",
     "puppeteer": "^22.0.0"

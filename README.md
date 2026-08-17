@@ -79,6 +79,10 @@ SILICONFLOW_MODEL=Qwen/Qwen2.5-72B-Instruct
 
 Profile page: `/profile`. Telegram: `/resume` after linking and uploading a master CV.
 
+**PWA:** installable on Android (Chrome “Install app”) and iPhone (Share → Add to Home Screen). Requires HTTPS in production; works on `localhost` for development. Assets: `public/manifest.webmanifest`, `public/sw.js`, `public/icons/`.
+
+**Password reset:** `/forgot-password` → email link → `/reset-password?token=…`. With SMTP unset, non-production responses include a `dev_hint` reset URL in the JSON body.
+
 ### 3. Set Up Database
 
 Create the database:

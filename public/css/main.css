@@ -168,6 +168,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  /* Space for fixed header (see .header) */
+  padding-top: var(--header-h);
+  transition: padding-top var(--transition-normal);
+}
+
+body.header-compact {
+  padding-top: var(--header-h-scrolled);
 }
 
 body.has-bottom-nav {
@@ -361,12 +368,15 @@ ul, ol {
    HEADER & NAVIGATION
    ============================================ */
 
+/* Fixed header so hamburger/logo stay above scrolling content */
 .header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
   height: var(--header-h);
-  background: rgba(246, 244, 241, 0.78);
+  background: rgba(246, 244, 241, 0.94);
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   border-bottom: 1px solid transparent;
@@ -375,7 +385,7 @@ ul, ol {
 
 .header.is-scrolled {
   height: var(--header-h-scrolled);
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.96);
   border-bottom-color: var(--border);
   box-shadow: var(--shadow-xs);
 }
@@ -670,6 +680,42 @@ body.mobile-menu-open {
   flex-direction: column;
   gap: var(--space-2);
   margin-top: var(--space-4);
+}
+
+/* Auth form helpers */
+.form-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.form-label-row .form-label {
+  margin-bottom: 0;
+}
+
+.form-label-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--brand);
+  white-space: nowrap;
+}
+
+.form-label-link:hover {
+  text-decoration: underline;
+}
+
+.alert-success {
+  background: var(--mint-soft);
+  color: #0f766e;
+  border: 1px solid rgba(18, 184, 134, 0.25);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
 @media (max-width: 860px) {

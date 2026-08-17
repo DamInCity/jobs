@@ -115,6 +115,24 @@ const userValidation = {
       .notEmpty().withMessage('Password is required'),
     validate,
   ],
+  forgotPassword: [
+    body('email')
+      .trim()
+      .notEmpty().withMessage('Email is required')
+      .isEmail().withMessage('Must be a valid email address')
+      .normalizeEmail(),
+    validate,
+  ],
+  resetPassword: [
+    body('token')
+      .trim()
+      .notEmpty().withMessage('Reset token is required')
+      .isLength({ min: 32, max: 128 }).withMessage('Invalid reset token'),
+    body('password')
+      .notEmpty().withMessage('Password is required')
+      .isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+    validate,
+  ],
   updateProfile: [
     body('name')
       .optional()

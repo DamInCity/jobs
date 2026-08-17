@@ -290,6 +290,70 @@ CREATE TABLE IF NOT EXISTS tailored_resumes (
 CREATE INDEX IF NOT EXISTS idx_tailored_resumes_user ON tailored_resumes(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tailored_resumes_job ON tailored_resumes(job_id) WHERE job_id IS NOT NULL;
 
+-- S1: Kenya-local job metadata + upstream source registry
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS county VARCHAR(100);
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS country_code CHAR(2) DEFAULT 'KE';
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_type VARCHAR(40) DEFAULT 'BOARD';
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_url TEXT;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS application_url TEXT;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS verification_status VARCHAR(32) DEFAULT 'aggregated';
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS is_aggregated BOOLEAN DEFAULT TRUE;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS deadline TIMESTAMP WITH TIME ZONE;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_source_id UUID;
+
+CREATE INDEX IF NOT EXISTS idx_jobs_county ON jobs(county) WHERE county IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_jobs_country_code ON jobs(country_code);
+CREATE INDEX IF NOT EXISTS idx_jobs_source_type ON jobs(source_type);
+CREATE INDEX IF NOT EXISTS idx_jobs_verification ON jobs(verification_status);
+CREATE INDEX IF NOT EXISTS idx_jobs_source ON jobs(source);
+
+CREATE TABLE IF NOT EXISTS job_sources (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  slug VARCHAR(120) NOT NULL UNIQUE,
+  name VARCHAR(255) NOT NULL,
+  source_type VARCHAR(40) NOT NULL DEFAULT 'COMPANY_CAREER',
+  base_url TEXT NOT NULL,
+  parser_key VARCHAR(60) NOT NULL DEFAULT 'generic-html',
+  parser_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  county_hint VARCHAR(100),
+  country_code CHAR(2) DEFAULT 'KE',
+  crawl_frequency_hours INTEGER DEFAULT 12,
+  last_crawled_at TIMESTAMP WITH TIME ZONE,
+  last_success_at TIMESTAMP WITH TIME ZONE,
+  last_error TEXT,
+  jobs_found_last INTEGER DEFAULT 0,
+  jobs_saved_last INTEGER DEFAULT 0,
+  status VARCHAR(32) DEFAULT 'active',
+  robots_ok BOOLEAN DEFAULT TRUE,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_sources_status ON job_sources(status);
+CREATE INDEX IF NOT EXISTS idx_job_sources_type ON job_sources(source_type);
+CREATE INDEX IF NOT EXISTS idx_job_sources_parser ON job_sources(parser_key);
+
+ALTER TABLE jobs
+  DROP CONSTRAINT IF EXISTS jobs_job_source_id_fkey;
+ALTER TABLE jobs
+  ADD CONSTRAINT jobs_job_source_id_fkey
+  FOREIGN KEY (job_source_id) REFERENCES job_sources(id) ON DELETE SET NULL;
+
+-- Weekly / historical scraper quality snapshots
+CREATE TABLE IF NOT EXISTS scraper_quality_reports (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  period_start TIMESTAMP WITH TIME ZONE NOT NULL,
+  period_end TIMESTAMP WITH TIME ZONE NOT NULL,
+  report_json JSONB NOT NULL,
+  summary_md TEXT,
+  overall_score NUMERIC(5,2),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_scraper_quality_reports_created
+  ON scraper_quality_reports(created_at DESC);
+
 -- Idempotent delivery log for existing DBs
 CREATE TABLE IF NOT EXISTS job_alert_deliveries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

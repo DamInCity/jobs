@@ -92,5 +92,23 @@ module.exports = {
       time: true,
       merge_logs: true,
     },
+    // Weekly scraper quality assessment (Mondays 07:15 EAT ≈ 04:15 UTC)
+    // Efficient equivalent: one SQL report job, no LLM. See docs/SCRAPER_QUALITY.md
+    {
+      name: 'jobs-scraper-quality',
+      cwd: '/var/www/jobs',
+      script: 'src/scrapers/qualityAssessment.js',
+      args: '--days=7',
+      instances: 1,
+      autorestart: false,
+      watch: false,
+      cron_restart: '15 4 * * 1',
+      env_production: {
+        NODE_ENV: 'production',
+      },
+      error_file: '/var/www/jobs/logs/scraper-quality-error.log',
+      out_file: '/var/www/jobs/logs/scraper-quality-output.log',
+      time: true,
+    },
   ],
 };

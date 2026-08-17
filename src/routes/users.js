@@ -139,6 +139,111 @@ router.post('/login', userValidation.login, asyncHandler(async (req, res) => {
   });
 }));
 
+// Forgot password — always returns success (no email enumeration)
+router.post('/forgot-password', userValidation.forgotPassword, asyncHandler(async (req, res) => {
+  const email = String(req.body.email || '').toLowerCase().trim();
+  const result = await db.query(
+    'SELECT id, email, name FROM users WHERE email = $1',
+    [email]
+  );
+
+  let resetUrl = null;
+  if (result.rows.length > 0) {
+    const user = result.rows[0];
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db.query(
+      `
+      UPDATE users
+      SET password_reset_token = $1, password_reset_expires = $2
+      WHERE id = $3
+      `,
+      [token, expires, user.id]
+    );
+
+    resetUrl = `${config.app.url}/reset-password?token=${token}`;
+    const html = `
+      <p>Hi ${escapeHtmlEmail(user.name || 'there')},</p>
+      <p>We received a request to reset your JobsHub password.</p>
+      <p><a href="${resetUrl}" style="display:inline-block;background:#FF4F5E;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Reset password</a></p>
+      <p>Or open this link:<br><a href="${resetUrl}">${resetUrl}</a></p>
+      <p>This link expires in 1 hour. If you did not request a reset, you can ignore this email.</p>
+      <p>— JobsHub</p>
+    `;
+
+    try {
+      const { sendEmail } = require('../jobs/emailAlerts');
+      const mailResult = await sendEmail(user.email, 'Reset your JobsHub password', html);
+      if (mailResult?.dryRun) {
+        console.log(`🔑 [password-reset dry-run] ${user.email} → ${resetUrl}`);
+      }
+    } catch (error) {
+      console.warn('Forgot-password email failed:', error.message);
+      console.log(`🔑 [password-reset fallback] ${user.email} → ${resetUrl}`);
+    }
+  }
+
+  const payload = {
+    success: true,
+    message: 'If an account exists for that email, we sent password reset instructions.',
+  };
+
+  // In non-production, include reset URL when SMTP is dry-run so local testing works
+  if (config.env !== 'production' && resetUrl) {
+    payload.data = { reset_url: resetUrl, dev_hint: true };
+  }
+
+  res.json(payload);
+}));
+
+// Reset password with token from email
+router.post('/reset-password', userValidation.resetPassword, asyncHandler(async (req, res) => {
+  const token = String(req.body.token || '').trim();
+  const { password } = req.body;
+
+  const result = await db.query(
+    `
+    SELECT id, email FROM users
+    WHERE password_reset_token = $1
+      AND password_reset_expires > NOW()
+    LIMIT 1
+    `,
+    [token]
+  );
+
+  if (result.rows.length === 0) {
+    throw new AppError('This reset link is invalid or has expired. Request a new one.', 400);
+  }
+
+  const user = result.rows[0];
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  await db.query(
+    `
+    UPDATE users
+    SET password_hash = $1,
+        password_reset_token = NULL,
+        password_reset_expires = NULL
+    WHERE id = $2
+    `,
+    [passwordHash, user.id]
+  );
+
+  res.json({
+    success: true,
+    message: 'Password updated. You can sign in with your new password.',
+  });
+}));
+
+function escapeHtmlEmail(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // ============================================
 // PROFILE
 // ============================================

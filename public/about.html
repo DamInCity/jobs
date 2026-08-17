@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="theme-color" content="#FF4F5E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="JobsHub">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="About JobsHub — a modern job aggregator that helps you discover curated roles from top companies worldwide.">
   <title>About - JobsHub</title>
@@ -13,7 +18,7 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23FF4F5E'/><text x='50' y='68' text-anchor='middle' font-size='52' font-family='system-ui' font-weight='800' fill='white'>J</text></svg>">
 </head>
 <body>
-  <header class="header">
+  <header class="header" id="siteHeader">
     <div class="container">
       <nav class="nav">
         <a href="/" class="logo">
@@ -143,37 +148,7 @@
     </section>
   </main>
 
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-section">
-          <h3 class="footer-logo">
-            <span class="logo-mark" style="width:32px;height:32px;font-size:0.85rem;border-radius:9px">J</span>
-            JobsHub
-          </h3>
-          <p>A smarter way to discover work that feels right.</p>
-        </div>
-        <div class="footer-section">
-          <h4>For you</h4>
-          <ul>
-            <li><a href="/">Browse jobs</a></li>
-            <li><a href="/categories">Explore paths</a></li>
-          </ul>
-        </div>
-        <div class="footer-section">
-          <h4>Company</h4>
-          <ul>
-            <li><a href="/about">About</a></li>
-            <li><a href="/login">Sign in</a></li>
-            <li><a href="/register">Get started</a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        <p>&copy; 2026 JobsHub</p>
-      </div>
-    </div>
-  </footer>
+  <footer class="footer" data-site-footer></footer>
 
   <script src="/js/common.js"></script>
   <script src="/js/about-page.js"></script>

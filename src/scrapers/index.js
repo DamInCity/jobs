@@ -6,6 +6,7 @@
 const BaseScraper = require('./BaseScraper');
 const BrighterMondayScraper = require('./BrighterMondayScraper');
 const MyJobMagScraper = require('./MyJobMagScraper');
+const KenyaCareerImporter = require('./kenya/KenyaCareerImporter');
 const JSearchImporter = require('./rapidapi/JSearchImporter');
 const LinkedInImporter = require('./rapidapi/LinkedInImporter');
 const JobsApi14Importer = require('./rapidapi/JobsApi14Importer');
@@ -14,11 +15,13 @@ module.exports = {
   BaseScraper,
   BrighterMondayScraper,
   MyJobMagScraper,
+  KenyaCareerImporter,
   JSearchImporter,
   LinkedInImporter,
   JobsApi14Importer,
 
   getAllScrapers: () => [
+    { name: 'KenyaCareers', Class: KenyaCareerImporter },
     { name: 'JSearch', Class: JSearchImporter },
     { name: 'LinkedIn', Class: LinkedInImporter },
     { name: 'JobsAPI14', Class: JobsApi14Importer },
@@ -28,6 +31,8 @@ module.exports = {
 
   runScraper: async (name, options = {}) => {
     const scrapers = {
+      kenyacareers: KenyaCareerImporter,
+      kenya: KenyaCareerImporter,
       jsearch: JSearchImporter,
       linkedin: LinkedInImporter,
       jobsapi14: JobsApi14Importer,

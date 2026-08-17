@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="theme-color" content="#FF4F5E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="JobsHub">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Manage your JobsHub profile, CV, and AI-tailored resumes.">
   <title>Profile - JobsHub</title>
@@ -114,7 +119,7 @@
   </style>
 </head>
 <body>
-  <header class="header">
+  <header class="header" id="siteHeader">
     <div class="container">
       <nav class="nav">
         <a href="/" class="logo">
@@ -359,37 +364,7 @@
     </section>
   </main>
 
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-section">
-          <h3 class="footer-logo">
-            <span class="logo-icon">💼</span>
-            JobsHub
-          </h3>
-          <p>Find your dream job from our curated list of opportunities from top companies.</p>
-        </div>
-        <div class="footer-section">
-          <h4>For Job Seekers</h4>
-          <ul>
-            <li><a href="/">Browse Jobs</a></li>
-            <li><a href="/categories">Categories</a></li>
-            <li><a href="/alerts">Job Alerts</a></li>
-            <li><a href="/profile">Profile</a></li>
-          </ul>
-        </div>
-        <div class="footer-section">
-          <h4>Company</h4>
-          <ul>
-            <li><a href="/about">About Us</a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        <p>&copy; <span id="year"></span> JobsHub. All rights reserved.</p>
-      </div>
-    </div>
-  </footer>
+  <footer class="footer" data-site-footer></footer>
 
   <script src="/js/common.js"></script>
   <script src="/js/profile-page.js"></script>

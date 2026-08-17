@@ -1,0 +1,573 @@
+[
+  {
+    "slug": "safaricom-careers",
+    "name": "Safaricom",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.safaricom.co.ke/careers",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Safaricom",
+      "link_includes": ["career", "job", "vacanc", "opportunit", "position"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 12,
+    "notes": "Use greenhouse parser_key only when a verified public board token is known"
+  },
+  {
+    "slug": "equity-bank",
+    "name": "Equity Bank",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://equitygroupholdings.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Equity Bank",
+      "link_includes": ["/career", "/job", "vacanc"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "kcb-group",
+    "name": "KCB Group",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://ke.kcbgroup.com/careers",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "KCB Group",
+      "link_includes": ["/career", "/job", "vacanc", "opportunit"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "co-operative-bank",
+    "name": "Co-operative Bank of Kenya",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.co-opbank.co.ke/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Co-operative Bank of Kenya" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "ncba-bank",
+    "name": "NCBA Bank",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://ke.ncbagroup.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "NCBA Bank" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "absa-kenya",
+    "name": "Absa Kenya",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.absa.co.ke/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Absa Bank Kenya" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "standard-chartered-ke",
+    "name": "Standard Chartered Kenya",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.sc.com/ke/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Standard Chartered Kenya" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "britam",
+    "name": "Britam",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://ke.britam.com/careers",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Britam" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "cic-insurance",
+    "name": "CIC Insurance",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://cic.co.ke/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "CIC Insurance Group" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "kenya-airways",
+    "name": "Kenya Airways",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.kenya-airways.com/en-ke/about-us/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Kenya Airways" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "nation-media",
+    "name": "Nation Media Group",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.nationmedia.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Nation Media Group" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "royal-media",
+    "name": "Royal Media Services",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.royalmedia.co.ke/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Royal Media Services" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "safaricom-foundation",
+    "name": "Safaricom Foundation",
+    "source_type": "NGO",
+    "base_url": "https://www.safaricomfoundation.org/",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Safaricom Foundation",
+      "link_includes": ["career", "job", "vacanc", "opportunit"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 48
+  },
+  {
+    "slug": "amref",
+    "name": "Amref Health Africa",
+    "source_type": "NGO",
+    "base_url": "https://amref.org/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Amref Health Africa" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "path-kenya",
+    "name": "PATH Kenya",
+    "source_type": "NGO",
+    "base_url": "https://www.path.org/about/careers/",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "PATH",
+      "location_must_include": ["Kenya", "Nairobi", "Africa"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "world-vision-ke",
+    "name": "World Vision Kenya",
+    "source_type": "NGO",
+    "base_url": "https://www.wvi.org/careers",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "World Vision",
+      "location_must_include": ["Kenya", "Nairobi"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "save-the-children-ke",
+    "name": "Save the Children Kenya",
+    "source_type": "NGO",
+    "base_url": "https://www.savethechildren.net/careers",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Save the Children",
+      "location_must_include": ["Kenya", "Nairobi"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "red-cross-ke",
+    "name": "Kenya Red Cross",
+    "source_type": "NGO",
+    "base_url": "https://www.redcross.or.ke/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Kenya Red Cross Society" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "icrc-kenya",
+    "name": "ICRC Kenya",
+    "source_type": "NGO",
+    "base_url": "https://careers.icrc.org/",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "ICRC",
+      "location_must_include": ["Kenya", "Nairobi"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "unon-careers",
+    "name": "UNON / UN Careers Kenya",
+    "source_type": "NGO",
+    "base_url": "https://careers.un.org/lbw/home.aspx?viewtype=SJ&lang=en-US",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "United Nations",
+      "location_must_include": ["Kenya", "Nairobi"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24,
+    "notes": "Filter client-side for Kenya duty stations when listing"
+  },
+  {
+    "slug": "psc-kenya",
+    "name": "Public Service Commission",
+    "source_type": "GOVERNMENT",
+    "base_url": "https://www.publicservice.go.ke/",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Public Service Commission",
+      "link_includes": ["vacanc", "advert", "career", "job", "recruit"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 12
+  },
+  {
+    "slug": "kenya-law",
+    "name": "Kenya Law",
+    "source_type": "GOVERNMENT",
+    "base_url": "http://kenyalaw.org/kl/index.php?id=114",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Government of Kenya",
+      "link_includes": ["vacanc", "career", "job", "advert"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "kra-careers",
+    "name": "Kenya Revenue Authority",
+    "source_type": "GOVERNMENT",
+    "base_url": "https://www.kra.go.ke/careers",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Kenya Revenue Authority" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "kplc",
+    "name": "Kenya Power",
+    "source_type": "GOVERNMENT",
+    "base_url": "https://www.kplc.co.ke/content/item/88/careers",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Kenya Power" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "kenha",
+    "name": "KeNHA",
+    "source_type": "GOVERNMENT",
+    "base_url": "https://www.kenha.co.ke/index.php/careers",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Kenya National Highways Authority" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "university-nairobi",
+    "name": "University of Nairobi",
+    "source_type": "GOVERNMENT",
+    "base_url": "https://www.uonbi.ac.ke/jobs",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "University of Nairobi" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "ku-jobs",
+    "name": "Kenyatta University",
+    "source_type": "GOVERNMENT",
+    "base_url": "https://www.ku.ac.ke/index.php/about-ku/jobs",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Kenyatta University" },
+    "county_hint": "Kiambu",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "jkuat",
+    "name": "JKUAT",
+    "source_type": "GOVERNMENT",
+    "base_url": "https://www.jkuat.ac.ke/vacancies/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "JKUAT" },
+    "county_hint": "Kiambu",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "moi-university",
+    "name": "Moi University",
+    "source_type": "GOVERNMENT",
+    "base_url": "https://www.mu.ac.ke/index.php/en/vacancies.html",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Moi University" },
+    "county_hint": "Uasin Gishu",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "strathmore",
+    "name": "Strathmore University",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://strathmore.edu/jobs/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Strathmore University" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "usiu-africa",
+    "name": "USIU-Africa",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.usiu.ac.ke/career-opportunities/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "USIU-Africa" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "aga-khan-university",
+    "name": "Aga Khan University Hospital",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.aku.edu/careers/pages/home.aspx",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Aga Khan University",
+      "location_must_include": ["Kenya", "Nairobi"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "nairobi-hospital",
+    "name": "The Nairobi Hospital",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://thenairobihosp.org/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "The Nairobi Hospital" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "mp-shah",
+    "name": "MP Shah Hospital",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://mpshahhosp.org/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "MP Shah Hospital" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "knh",
+    "name": "Kenyatta National Hospital",
+    "source_type": "GOVERNMENT",
+    "base_url": "https://knh.or.ke/index.php/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Kenyatta National Hospital" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "sarova-hotels",
+    "name": "Sarova Hotels",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.sarovahotels.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Sarova Hotels" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "serena-hotels",
+    "name": "Serena Hotels",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.serenahotels.com/careers",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Serena Hotels",
+      "location_must_include": ["Kenya", "Nairobi", "Mombasa"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "twiga-foods",
+    "name": "Twiga Foods",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://twiga.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Twiga Foods" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "cellulant",
+    "name": "Cellulant",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.cellulant.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Cellulant",
+      "location_must_include": ["Kenya", "Nairobi", "Africa"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "andela-careers",
+    "name": "Andela",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://andela.com/careers",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Andela",
+      "location_must_include": ["Kenya", "Nairobi", "Africa", "Remote"],
+      "link_includes": ["career", "job", "position", "role", "opportunit"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 12
+  },
+  {
+    "slug": "brck",
+    "name": "BRCK",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.brck.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "BRCK" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 48
+  },
+  {
+    "slug": "sendy",
+    "name": "Sendy",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://sendyit.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Sendy" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "m-kopa",
+    "name": "M-KOPA",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://m-kopa.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "M-KOPA" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "wasoko",
+    "name": "Wasoko",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://wasoko.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": {
+      "company_name": "Wasoko",
+      "location_must_include": ["Kenya", "Nairobi"]
+    },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "copia",
+    "name": "Copia Global",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://copia.co.ke/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Copia Global" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "sidian-bank",
+    "name": "Sidian Bank",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://sidianbank.co.ke/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Sidian Bank" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "family-bank",
+    "name": "Family Bank",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://familybank.co.ke/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Family Bank" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "i-m-bank",
+    "name": "I&M Bank",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://www.imbank.com/careers",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "I&M Bank" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "dtb-kenya",
+    "name": "Diamond Trust Bank",
+    "source_type": "COMPANY_CAREER",
+    "base_url": "https://dtbk.dtbafrica.com/careers/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Diamond Trust Bank" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 24
+  },
+  {
+    "slug": "recruitment-flexi",
+    "name": "Flexi Personnel",
+    "source_type": "RECRUITMENT_AGENCY",
+    "base_url": "https://www.flexi-personnel.com/jobs/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Flexi Personnel" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 12
+  },
+  {
+    "slug": "corporate-staffing",
+    "name": "Corporate Staffing Services",
+    "source_type": "RECRUITMENT_AGENCY",
+    "base_url": "https://www.corporatestaffing.co.ke/job-listings/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Corporate Staffing Services" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 12
+  },
+  {
+    "slug": "brighter-future-agency",
+    "name": "Career Point Solutions",
+    "source_type": "RECRUITMENT_AGENCY",
+    "base_url": "https://www.careerpointsolutions.co.ke/jobs/",
+    "parser_key": "generic-html",
+    "parser_config": { "company_name": "Career Point Solutions" },
+    "county_hint": "Nairobi",
+    "crawl_frequency_hours": 12
+  }
+]

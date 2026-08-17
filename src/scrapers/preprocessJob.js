@@ -3,6 +3,8 @@
  */
 
 const { mapCategory } = require('./categoryMapper');
+const { normalizeCounty, isKenyaLocation } = require('./kenya/counties');
+const { inferSourceType, defaultVerification, SOURCE_TYPES } = require('./kenya/sourceTypes');
 
 const SPAM_PATTERNS = [
   /earn\s+\$+\s*\d+/i,
@@ -37,6 +39,11 @@ function preprocessJob(raw, options = {}) {
   if (!title) return { ok: false, reason: 'missing_title' };
   if (!company) return { ok: false, reason: 'missing_company' };
   if (!externalLink) return { ok: false, reason: 'missing_external_link' };
+
+  // Drop nav / section labels that sometimes leak from board HTML
+  if (/^(careers?|jobs?|vacancies|opportunities|view all jobs|see all|home|about us)$/i.test(title)) {
+    return { ok: false, reason: 'nav_title' };
+  }
 
   externalLink = normalizeUrl(externalLink);
   if (!externalLink) return { ok: false, reason: 'invalid_url' };
@@ -75,7 +82,7 @@ function preprocessJob(raw, options = {}) {
     explicit: input.category || input.categoryHint || input.category_slug,
   });
 
-  const salary = parseSalary(input);
+  const salary = parseSalary(input, location);
   const postedDate = parseDate(input.posted_date || input.posted_at || input.date);
   if (postedDate && maxAgeDays > 0) {
     const ageMs = Date.now() - postedDate.getTime();
@@ -84,8 +91,39 @@ function preprocessJob(raw, options = {}) {
     }
   }
 
+  const deadline = parseDate(input.deadline || input.closing_date || input.application_deadline);
   const expiry = parseDate(input.expiry_date)
+    || deadline
     || new Date((postedDate || new Date()).getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const source = input.source || options.defaultSource || 'ingest';
+  const sourceType = String(
+    input.source_type || options.sourceType || inferSourceType(source)
+  ).toUpperCase();
+  const verificationStatus = String(
+    input.verification_status
+      || options.verificationStatus
+      || defaultVerification(sourceType)
+  ).toLowerCase();
+  const isAggregated = input.is_aggregated != null
+    ? Boolean(input.is_aggregated)
+    : sourceType !== SOURCE_TYPES.DIRECT;
+
+  const county = normalizeCounty(location, input.county || input.county_hint || options.countyHint);
+  let countryCode = String(input.country_code || input.countryCode || options.countryCode || '')
+    .toUpperCase()
+    .slice(0, 2);
+  if (!countryCode) {
+    countryCode = isKenyaLocation(location) || county ? 'KE' : '';
+  }
+  if (!countryCode && /kenya/i.test(String(options.defaultSource || source))) {
+    countryCode = 'KE';
+  }
+
+  let applicationUrl = input.application_url || input.apply_url || null;
+  if (applicationUrl) {
+    applicationUrl = normalizeUrl(String(applicationUrl)) || applicationUrl;
+  }
 
   const job = {
     title,
@@ -96,6 +134,8 @@ function preprocessJob(raw, options = {}) {
     requirements,
     benefits,
     location,
+    county: county || null,
+    country_code: countryCode || null,
     job_type: jobType,
     category,
     salary_min: salary.min,
@@ -103,9 +143,16 @@ function preprocessJob(raw, options = {}) {
     salary_currency: salary.currency,
     salary_period: salary.period,
     external_link: externalLink,
+    application_url: applicationUrl,
+    source_url: input.source_url || input.list_url || options.sourceUrl || null,
+    source_type: sourceType,
+    verification_status: verificationStatus,
+    is_aggregated: isAggregated,
+    job_source_id: input.job_source_id || options.jobSourceId || null,
+    deadline: deadline || null,
     posted_date: postedDate || new Date(),
     expiry_date: expiry,
-    source: input.source || options.defaultSource || 'ingest',
+    source,
   };
 
   return { ok: true, job };
@@ -165,17 +212,28 @@ function parseDate(value) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function parseSalary(input) {
+function parseSalary(input, location = '') {
   let min = numberOrNull(input.salary_min ?? input.min_salary ?? input.job_min_salary);
   let max = numberOrNull(input.salary_max ?? input.max_salary ?? input.job_max_salary);
-  let currency = String(input.salary_currency || input.currency || 'USD').slice(0, 10).toUpperCase();
-  let period = String(input.salary_period || 'yearly').toLowerCase();
-  if (!['yearly', 'monthly', 'weekly', 'hourly'].includes(period)) period = 'yearly';
+  const kenyaContext = isKenyaLocation(location)
+    || isKenyaLocation(input.location)
+    || Boolean(input.county)
+    || String(input.country_code || input.countryCode || '').toUpperCase() === 'KE'
+    || /kenya|\.co\.ke\b/i.test(String(input.external_link || input.url || input.source || ''));
+  let currency = String(
+    input.salary_currency || input.currency || (kenyaContext ? 'KES' : 'USD')
+  ).slice(0, 10).toUpperCase();
+  let period = String(input.salary_period || (kenyaContext ? 'monthly' : 'yearly')).toLowerCase();
+  if (!['yearly', 'monthly', 'weekly', 'hourly'].includes(period)) {
+    period = kenyaContext ? 'monthly' : 'yearly';
+  }
 
   if (min == null && max == null && input.salary) {
     const text = String(input.salary);
-    const cur = text.match(/\b(KES|USD|EUR|GBP|ZAR|NGN)\b/i);
-    if (cur) currency = cur[1].toUpperCase();
+    const cur = text.match(/\b(KES|KSH|USD|EUR|GBP|ZAR|NGN)\b/i);
+    if (cur) {
+      currency = cur[1].toUpperCase() === 'KSH' ? 'KES' : cur[1].toUpperCase();
+    }
     const nums = text.replace(/,/g, '').match(/\d+(?:\.\d+)?/g);
     if (nums && nums.length >= 2) {
       min = Math.round(Number(nums[0]));

@@ -931,7 +931,9 @@ function initStandaloneMobileNav() {
   const header = document.getElementById('siteHeader') || document.querySelector('.header');
   if (header) {
     const onScroll = () => {
-      header.classList.toggle('is-scrolled', window.scrollY > 12);
+      const compact = window.scrollY > 12;
+      header.classList.toggle('is-scrolled', compact);
+      document.body.classList.toggle('header-compact', compact);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
@@ -1003,7 +1005,81 @@ function initEventListeners() {
 // INIT
 // ============================================
 
+function injectHomeFooter() {
+  if (typeof window.injectSiteFooter === 'function') {
+    window.injectSiteFooter();
+    return;
+  }
+  const footer = document.querySelector('footer.footer, footer[data-site-footer]');
+  if (!footer) return;
+  const year = new Date().getFullYear();
+  footer.classList.add('footer');
+  footer.innerHTML = `
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-section">
+          <h3 class="footer-logo">
+            <span class="logo-mark" style="width:32px;height:32px;font-size:0.85rem;border-radius:9px">J</span>
+            JobsHub
+          </h3>
+          <p>A smarter way to discover work that feels right — curated listings, clear details, zero noise.</p>
+        </div>
+        <div class="footer-section">
+          <h4>For you</h4>
+          <ul>
+            <li><a href="/">Browse jobs</a></li>
+            <li><a href="/categories">Explore paths</a></li>
+            <li><a href="/alerts">Job alerts</a></li>
+            <li><a href="/profile">Profile</a></li>
+            <li><a href="/register">Create account</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="/about">About us</a></li>
+            <li><a href="/login">Sign in</a></li>
+            <li><a href="/forgot-password">Forgot password</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="/privacy">Privacy</a></li>
+            <li><a href="/terms">Terms</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; ${year} JobsHub. Built for people who care about their next move.</p>
+        <div class="social-links">
+          <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+          <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function registerPwa() {
+  if (typeof window.registerServiceWorker === 'function') {
+    window.registerServiceWorker();
+    return;
+  }
+  if (!('serviceWorker' in navigator)) return;
+  const isLocal =
+    location.hostname === 'localhost' ||
+    location.hostname === '127.0.0.1' ||
+    location.hostname === '[::1]';
+  if (location.protocol !== 'https:' && !isLocal) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 async function init() {
+  injectHomeFooter();
+  registerPwa();
   initEventListeners();
   loadFromURL();
   await checkAuth();

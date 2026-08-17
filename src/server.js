@@ -33,6 +33,9 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
       // Allow inline onclick/onerror handlers used by public/js (Helmet defaults this to 'none')
       scriptSrcAttr: ["'unsafe-inline'"],
+      connectSrc: ["'self'"],
+      manifestSrc: ["'self'"],
+      workerSrc: ["'self'"],
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -123,6 +126,8 @@ const pageRoutes = {
   '/register': 'register.html',
   '/signup': 'register.html',
   '/sign-up': 'register.html',
+  '/forgot-password': 'forgot-password.html',
+  '/reset-password': 'reset-password.html',
   '/categories': 'categories.html',
   '/about': 'about.html',
   '/alerts': 'alerts.html',
@@ -130,6 +135,19 @@ const pageRoutes = {
   '/profile': 'profile.html',
   '/account': 'profile.html',
 };
+
+// PWA service worker — no long cache on the SW script itself
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.type('application/javascript');
+  res.sendFile(path.join(publicDir, 'sw.js'));
+});
+
+app.get('/manifest.webmanifest', (req, res) => {
+  res.type('application/manifest+json');
+  res.sendFile(path.join(publicDir, 'manifest.webmanifest'));
+});
 
 Object.entries(pageRoutes).forEach(([route, file]) => {
   app.get(route, (req, res) => {
