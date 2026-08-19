@@ -337,12 +337,17 @@ function renderJobs(jobs, containerId = 'jobsList') {
   if (!container) return;
 
   if (!jobs || jobs.length === 0) {
+    const cat = state.filters?.category;
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon"><i class="fas fa-compass"></i></div>
-        <h3>Nothing perfect yet</h3>
-        <p>Try widening your search — your next opportunity might be one filter away.</p>
-        <button type="button" class="btn btn-primary" id="emptyClearBtn">Reset filters</button>
+        <h3>${cat ? 'No open roles in this category' : 'Nothing perfect yet'}</h3>
+        <p>${
+          cat
+            ? 'This field has 0 matching jobs right now. Try another category or browse everything.'
+            : 'Try widening your search — your next opportunity might be one filter away.'
+        }</p>
+        <button type="button" class="btn btn-primary" id="emptyClearBtn">${cat ? 'Browse all jobs' : 'Reset filters'}</button>
       </div>
     `;
     document.getElementById('emptyClearBtn')?.addEventListener('click', clearFilters);

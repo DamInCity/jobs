@@ -140,10 +140,34 @@ function hintForTitle(title) {
 }
 
 /**
+ * Active location stream — Kenya-first by default (JOBS_FOCUS=kenya|global).
+ */
+function getLocations() {
+  const focus = String(process.env.JOBS_FOCUS || 'kenya').toLowerCase();
+  if (focus === 'global' || focus === 'all') {
+    return LOCATIONS;
+  }
+  const tail = LOCATIONS.filter(
+    (l) =>
+      l.workFromHome ||
+      ['United States', 'United Kingdom', 'South Africa', 'remote'].includes(l.query)
+  );
+  const seen = new Set();
+  const out = [];
+  for (const loc of [...KE_LOCATIONS, ...tail]) {
+    const key = `${loc.query}|${loc.country || ''}|${loc.workFromHome ? 1 : 0}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(loc);
+  }
+  return out;
+}
+
+/**
  * Location strings for LinkedIn-style OR filters.
  */
 function linkedInLocationOr() {
-  return LOCATIONS
+  return getLocations()
     .filter((l) => !l.workFromHome)
     .map((l) => `"${l.query}"`)
     .join(' OR ');
@@ -154,13 +178,22 @@ function linkedInLocationOr() {
  */
 function api14Queries() {
   const pairs = [];
-  const locs = [
-    { location: 'Kenya', countryCode: 'ke' },
-    { location: 'United States', countryCode: 'us' },
-    { location: 'United Kingdom', countryCode: 'gb' },
-    { location: 'South Africa', countryCode: 'za' },
-  ];
-  // Pair each title with rotating locations for coverage without explosion
+  const focus = String(process.env.JOBS_FOCUS || 'kenya').toLowerCase();
+  const locs =
+    focus === 'global' || focus === 'all'
+      ? [
+          { location: 'Kenya', countryCode: 'ke' },
+          { location: 'United States', countryCode: 'us' },
+          { location: 'United Kingdom', countryCode: 'gb' },
+          { location: 'South Africa', countryCode: 'za' },
+        ]
+      : [
+          { location: 'Kenya', countryCode: 'ke' },
+          { location: 'Nairobi', countryCode: 'ke' },
+          { location: 'Mombasa', countryCode: 'ke' },
+          { location: 'Kisumu', countryCode: 'ke' },
+          { location: 'United States', countryCode: 'us' },
+        ];
   TITLES.forEach((t, i) => {
     const loc = locs[i % locs.length];
     pairs.push({
@@ -181,4 +214,5 @@ module.exports = {
   hintForTitle,
   linkedInLocationOr,
   api14Queries,
+  getLocations,
 };

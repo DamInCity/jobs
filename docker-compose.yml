@@ -57,6 +57,11 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@jobswebsite.com}
+      JOBS_FOCUS: ${JOBS_FOCUS:-kenya}
+      MAX_AGGREGATED_JOB_AGE_DAYS: ${MAX_AGGREGATED_JOB_AGE_DAYS:-45}
+      SUPPLY_MIN_ACTIVE: ${SUPPLY_MIN_ACTIVE:-30}
+      SUPPLY_MAX_STALE_HOURS: ${SUPPLY_MAX_STALE_HOURS:-36}
+      SUPPLY_MIN_CATEGORIES: ${SUPPLY_MIN_CATEGORIES:-5}
       N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-}
       INGEST_API_KEY: ${INGEST_API_KEY:-}
       XAI_API_KEY: ${XAI_API_KEY:-}
@@ -154,7 +159,8 @@ services:
     networks:
       - jobs_network
 
-  # Optional: run scrapers on a schedule (also fires alerts when jobs are saved)
+  # Scrapers on a schedule (MyJobMag + KenyaCareers always; RapidAPI when key set)
+  # Also fires preference alerts when new jobs are saved.
   scraper:
     build:
       context: .
@@ -172,9 +178,13 @@ services:
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       APP_URL: ${APP_URL:-http://localhost:3000}
+      JOBS_FOCUS: ${JOBS_FOCUS:-kenya}
+      DISABLE_KENYA_CAREERS: ${DISABLE_KENYA_CAREERS:-false}
+      ENABLE_HTML_SCRAPERS: ${ENABLE_HTML_SCRAPERS:-false}
+      MAX_AGGREGATED_JOB_AGE_DAYS: ${MAX_AGGREGATED_JOB_AGE_DAYS:-45}
       RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
       RAPIDAPI_MAX_REQUESTS_PER_RUN: ${RAPIDAPI_MAX_REQUESTS_PER_RUN:-80}
-      INGEST_MAX_JOBS_PER_SOURCE: ${INGEST_MAX_JOBS_PER_SOURCE:-400}
+      INGEST_MAX_JOBS_PER_SOURCE: ${INGEST_MAX_JOBS_PER_SOURCE:-200}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       ALERT_LOOKBACK_DAYS: ${ALERT_LOOKBACK_DAYS:-30}
@@ -183,13 +193,87 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@jobswebsite.com}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - jobs_network
-    profiles:
-      - scrapers
+
+  # Every 6h: expire stale/junk rows, recompute category counts, alert if supply thin
+  supply-heartbeat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jobs_supply_heartbeat
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          node src/jobs/supplyHeartbeat.js --alert-only-on-fail || true
+          sleep 21600
+        done
+    healthcheck:
+      disable: true
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-jobs_website}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      SUPPLY_MIN_ACTIVE: ${SUPPLY_MIN_ACTIVE:-30}
+      SUPPLY_MAX_STALE_HOURS: ${SUPPLY_MAX_STALE_HOURS:-36}
+      SUPPLY_MIN_CATEGORIES: ${SUPPLY_MIN_CATEGORIES:-5}
+      MAX_AGGREGATED_JOB_AGE_DAYS: ${MAX_AGGREGATED_JOB_AGE_DAYS:-45}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      SUPPLY_ALERT_CHAT_ID: ${SUPPLY_ALERT_CHAT_ID:-}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-}
+      N8N_SUPPLY_WEBHOOK_URL: ${N8N_SUPPLY_WEBHOOK_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - jobs_network
+
+  # Weekly quality report (Mon ~04:15 UTC). One-shot loop with long sleep.
+  scraper-quality:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jobs_scraper_quality
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          # Sleep until next Monday 04:15 UTC-ish: check hourly
+          dow=$$(date -u +%u); hour=$$(date -u +%H); min=$$(date -u +%M)
+          if [ "$$dow" = "1" ] && [ "$$hour" = "04" ] && [ "$$min" -lt "20" ]; then
+            node src/scrapers/qualityAssessment.js --days=7 || true
+            sleep 3600
+          fi
+          sleep 600
+        done
+    healthcheck:
+      disable: true
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-jobs_website}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SUPPLY_MIN_ACTIVE: ${SUPPLY_MIN_ACTIVE:-30}
+      SUPPLY_MAX_STALE_HOURS: ${SUPPLY_MAX_STALE_HOURS:-36}
+      SUPPLY_MIN_CATEGORIES: ${SUPPLY_MIN_CATEGORIES:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - jobs_network
 
   # Nginx Reverse Proxy (optional, for production)
   nginx:

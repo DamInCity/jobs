@@ -121,7 +121,23 @@ When user alerts match, JobsHub POSTs a JSON payload (jobs + user channel hints)
 
 ## Importable workflow skeleton
 
-See `docs/n8n/job-google-ingest.workflow.json`.
+See:
+
+| File | Purpose |
+|------|---------|
+| `docs/n8n/job-google-ingest.workflow.json` | Cron every 6h → query planner (KE titles×locations) → discovery → `POST /api/ingest/jobs` |
+| `docs/n8n/supply-watchdog.workflow.json` | Cron every 3h → `GET /api/health/supply` → alert if gates fail |
+
+### Supply watchdog
+
+1. Import `supply-watchdog.workflow.json`
+2. Set n8n env `JOBSHUB_URL=https://jobs.usseo.one` (or local)
+3. Wire TRUE branch of **IF supply failed** to Telegram/Slack/email
+4. Optional: on fail, trigger your scrape runner or model agent
+
+JobsHub also runs `jobs_supply_heartbeat` in Docker/PM2 (expire + recount + alert) so the platform self-heals inventory without n8n — n8n is the external monitor/fan-out layer.
+
+### Ingest workflow
 
 1. Import into n8n  
 2. Set env `JOBSHUB_INGEST_KEY` = your `INGEST_API_KEY` (or hardcode header carefully)  
@@ -138,8 +154,11 @@ When jobs are accepted, JobsHub immediately runs preference-based alerts so Tele
 
 | Step | Done when |
 |------|-----------|
+| `docker compose up -d` includes `scraper` + `supply-heartbeat` | containers running |
+| `GET /api/health/supply` | returns gates + active count |
 | `INGEST_API_KEY` in JobsHub `.env` + compose | `curl` preprocess returns 200 |
-| n8n workflow imported + key set | Test execution hits ingest |
+| n8n ingest workflow imported + key set | Test execution hits ingest |
+| n8n supply watchdog imported | Alerts on thin inventory |
 | Discovery not placeholder | Real employers/URLs in DB (`source=n8n-google`) |
 | Users have profile or alerts | CV profile or manual category alert |
 | Telegram bot token + linked users | Digests arrive in chat | 

@@ -209,15 +209,11 @@ async function cleanupExpiredJobs() {
   console.log('\n🧹 Cleaning up expired jobs...');
 
   try {
-    const result = await db.query(`
-      UPDATE jobs
-      SET status = 'expired'
-      WHERE expiry_date < CURRENT_TIMESTAMP
-        AND status = 'active'
-      RETURNING id
-    `);
-
-    console.log(`   Marked ${result.rowCount} jobs as expired`);
+    const { expirePastDueJobs } = require('../jobs/expiryMaintenance');
+    const result = await expirePastDueJobs();
+    console.log(
+      `   Expired date=${result.expiredByDate} age=${result.expiredByAge} junk=${result.expiredJunkTitles}`
+    );
   } catch (error) {
     console.error('   Error cleaning up jobs:', error.message);
   }

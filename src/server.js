@@ -116,6 +116,23 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Supply snapshot for n8n / uptime monitors (no secrets)
+app.get('/api/health/supply', async (req, res) => {
+  try {
+    const { getSupplySnapshot } = require('./jobs/expiryMaintenance');
+    const supply = await getSupplySnapshot();
+    res.status(supply.gates_passed ? 200 : 503).json({
+      success: supply.gates_passed,
+      data: supply,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Supply health failed',
+    });
+  }
+});
+
 // ============================================
 // FRONTEND PAGE ROUTES
 // ============================================
@@ -219,8 +236,31 @@ async function bootstrapSchema() {
   }
 }
 
+async function runExpiryMaintenanceSafe(label = 'startup') {
+  try {
+    const { expirePastDueJobs } = require('./jobs/expiryMaintenance');
+    const result = await expirePastDueJobs();
+    console.log(
+      `🧹 Expiry maintenance (${label}): date=${result.expiredByDate} age=${result.expiredByAge} junk=${result.expiredJunkTitles}`
+    );
+    return result;
+  } catch (error) {
+    console.error(`⚠️ Expiry maintenance (${label}) failed:`, error.message);
+    return null;
+  }
+}
+
 async function start() {
   await bootstrapSchema();
+  await runExpiryMaintenanceSafe('startup');
+
+  // Keep inventory honest even if the scraper container is down
+  const maintenanceMs = parseInt(process.env.EXPIRY_MAINTENANCE_MS || String(6 * 60 * 60 * 1000), 10);
+  if (maintenanceMs > 0) {
+    setInterval(() => {
+      void runExpiryMaintenanceSafe('interval');
+    }, maintenanceMs).unref?.();
+  }
 
   const server = app.listen(PORT, () => {
     console.log(`

@@ -4,6 +4,7 @@ const { asyncHandler, AppError } = require('../middleware/errorHandler');
 const { optionalAuth } = require('../middleware/auth');
 const { searchValidation } = require('../middleware/validation');
 const config = require('../config');
+const { ACTIVE_LISTING_SQL_J } = require('../jobs/expiryMaintenance');
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ router.get('/', optionalAuth, searchValidation.jobs, asyncHandler(async (req, re
   const limitNum = Math.min(parseInt(limit) || config.pagination.defaultPageSize, config.pagination.maxPageSize);
   const offset = (pageNum - 1) * limitNum;
 
-  let whereConditions = ["j.status = 'active'"];
+  let whereConditions = [ACTIVE_LISTING_SQL_J];
   let params = [];
   let paramIndex = 1;
 
@@ -235,28 +236,28 @@ router.get('/meta/facets', asyncHandler(async (req, res) => {
   const [counties, sourceTypes, kenyaCount] = await Promise.all([
     db.query(`
       SELECT county AS value, COUNT(*)::int AS count
-      FROM jobs
-      WHERE status = 'active' AND county IS NOT NULL AND county <> ''
+      FROM jobs j
+      WHERE ${ACTIVE_LISTING_SQL_J} AND j.county IS NOT NULL AND j.county <> ''
       GROUP BY county
       ORDER BY count DESC, county ASC
       LIMIT 47
     `),
     db.query(`
-      SELECT COALESCE(source_type, 'BOARD') AS value, COUNT(*)::int AS count
-      FROM jobs
-      WHERE status = 'active'
-      GROUP BY COALESCE(source_type, 'BOARD')
+      SELECT COALESCE(j.source_type, 'BOARD') AS value, COUNT(*)::int AS count
+      FROM jobs j
+      WHERE ${ACTIVE_LISTING_SQL_J}
+      GROUP BY COALESCE(j.source_type, 'BOARD')
       ORDER BY count DESC
     `),
     db.query(`
-      SELECT COUNT(*)::int AS count FROM jobs
-      WHERE status = 'active'
+      SELECT COUNT(*)::int AS count FROM jobs j
+      WHERE ${ACTIVE_LISTING_SQL_J}
         AND (
-          UPPER(COALESCE(country_code, '')) = 'KE'
-          OR location ILIKE '%kenya%'
-          OR county IS NOT NULL
-          OR source ILIKE 'kenya:%'
-          OR source ILIKE '%myjobmag%'
+          UPPER(COALESCE(j.country_code, '')) = 'KE'
+          OR j.location ILIKE '%kenya%'
+          OR j.county IS NOT NULL
+          OR j.source ILIKE 'kenya:%'
+          OR j.source ILIKE '%myjobmag%'
         )
     `),
   ]);
@@ -281,7 +282,7 @@ router.get('/trending', asyncHandler(async (req, res) => {
       c.name as category_name, c.slug as category_slug
     FROM jobs j
     LEFT JOIN categories c ON j.category_id = c.id
-    WHERE j.status = 'active'
+    WHERE ${ACTIVE_LISTING_SQL_J}
       AND j.posted_date >= CURRENT_TIMESTAMP - INTERVAL '48 hours'
     ORDER BY j.view_count DESC
     LIMIT 10
@@ -304,7 +305,7 @@ router.get('/featured', asyncHandler(async (req, res) => {
       c.name as category_name, c.slug as category_slug
     FROM jobs j
     LEFT JOIN categories c ON j.category_id = c.id
-    WHERE j.status = 'active' AND j.is_featured = true
+    WHERE ${ACTIVE_LISTING_SQL_J} AND j.is_featured = true
     ORDER BY j.posted_date DESC
     LIMIT 6
   `);
@@ -328,7 +329,7 @@ router.get('/:identifier', optionalAuth, asyncHandler(async (req, res) => {
       c.name as category_name, c.slug as category_slug
     FROM jobs j
     LEFT JOIN categories c ON j.category_id = c.id
-    WHERE ${isUUID ? 'j.id' : 'j.slug'} = $1 AND j.status = 'active'
+    WHERE ${isUUID ? 'j.id' : 'j.slug'} = $1 AND ${ACTIVE_LISTING_SQL_J}
   `, [identifier]);
 
   if (result.rows.length === 0) {
@@ -346,7 +347,7 @@ router.get('/:identifier', optionalAuth, asyncHandler(async (req, res) => {
       c.name as category_name
     FROM jobs j
     LEFT JOIN categories c ON j.category_id = c.id
-    WHERE j.status = 'active' 
+    WHERE ${ACTIVE_LISTING_SQL_J}
       AND j.id != $1
       AND (j.category_id = $2 OR j.company_name = $3)
     ORDER BY 

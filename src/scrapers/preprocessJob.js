@@ -40,9 +40,17 @@ function preprocessJob(raw, options = {}) {
   if (!company) return { ok: false, reason: 'missing_company' };
   if (!externalLink) return { ok: false, reason: 'missing_external_link' };
 
-  // Drop nav / section labels that sometimes leak from board HTML
-  if (/^(careers?|jobs?|vacancies|opportunities|view all jobs|see all|home|about us)$/i.test(title)) {
+  // Drop nav / section labels and multi-role hub pages that leak from board HTML
+  if (
+    /^(careers?|jobs?|job openings?|fresh jobs?|vacancies|opportunities|we are hiring|hiring|view all jobs?|see all|home|about us)$/i.test(
+      title
+    )
+  ) {
     return { ok: false, reason: 'nav_title' };
+  }
+  // "Careers at X" / "Jobs at X" listing hubs — not a single role
+  if (/^(careers?|jobs?|vacancies|openings)\s+at\s+/i.test(title)) {
+    return { ok: false, reason: 'junk_listing_title' };
   }
 
   externalLink = normalizeUrl(externalLink);

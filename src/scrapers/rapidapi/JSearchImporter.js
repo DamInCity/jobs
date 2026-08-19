@@ -7,13 +7,13 @@
 const BaseScraper = require('../BaseScraper');
 const RapidApiClient = require('./RapidApiClient');
 const { mapCategory } = require('../categoryMapper');
-const { TITLES, LOCATIONS, hintForTitle } = require('../jobStreams');
+const { TITLES, getLocations, hintForTitle } = require('../jobStreams');
 const config = require('../../config');
 
 const HOST = 'jsearch.p.rapidapi.com';
 
 const DEFAULT_TITLES = TITLES.map((t) => t.query);
-const DEFAULT_LOCATIONS = LOCATIONS;
+const DEFAULT_LOCATIONS = getLocations();
 
 class JSearchImporter extends BaseScraper {
   constructor() {

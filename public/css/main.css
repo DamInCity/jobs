@@ -2745,6 +2745,24 @@ body.mobile-menu-open {
   transform: translateX(3px);
 }
 
+.category-card.is-empty {
+  opacity: 0.72;
+  cursor: default;
+  pointer-events: none;
+  background: var(--surface-2, var(--surface));
+}
+
+.category-card.is-empty:hover {
+  transform: none;
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border);
+}
+
+.category-card-cta.muted {
+  color: var(--muted-2, var(--muted));
+  font-weight: 600;
+}
+
 /* ============================================
    ABOUT PAGE
    ============================================ */

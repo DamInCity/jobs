@@ -20,6 +20,8 @@
     "sources:sync": "node src/scrapers/kenya/syncSources.js",
     "scrape:quality": "node src/scrapers/qualityAssessment.js",
     "scrape:quality:strict": "node src/scrapers/qualityAssessment.js --strict",
+    "supply:heartbeat": "node src/jobs/supplyHeartbeat.js",
+    "supply:heartbeat:json": "node src/jobs/supplyHeartbeat.js --json",
     "alerts": "node src/jobs/emailAlerts.js",
     "alerts:force": "node src/jobs/emailAlerts.js --force --frequency=all",
     "alerts:test": "node src/jobs/emailAlerts.js --test-loop",
@@ -35,6 +37,7 @@
   "license": "MIT",
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "cheerio": "^1.2.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -46,6 +49,7 @@
     "mammoth": "^1.12.0",
     "morgan": "^1.10.0",
     "multer": "^2.2.0",
+    "node-cron": "^3.0.3",
     "nodemailer": "^9.0.3",
     "pdf-parse": "^2.4.5",
     "pdfmake": "^0.3.11",
@@ -57,8 +61,6 @@
     "nodemon": "^3.0.2"
   },
   "optionalDependencies": {
-    "cheerio": "^1.2.0",
-    "node-cron": "^3.0.3",
     "p-queue": "^7.4.1",
     "puppeteer": "^22.0.0"
   },

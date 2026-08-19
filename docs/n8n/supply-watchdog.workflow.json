@@ -1,0 +1,124 @@
+{
+  "name": "JobsHub Supply Watchdog",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 3 }]
+        }
+      },
+      "id": "cron-watch",
+      "name": "Every 3 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.JOBSHUB_URL || 'https://jobs.usseo.one' }}/api/health/supply",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "http-supply",
+      "name": "GET /api/health/supply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst status = item.json.statusCode || item.json.status || 0;\nconst body = item.json.body || item.json;\nconst data = body.data || body;\nconst gatesPassed = !!(data && data.gates_passed);\nconst active = data?.active ?? null;\nconst hours = data?.hours_since_ingest ?? null;\nconst cats = data?.categories_with_jobs ?? null;\nconst fail = status >= 400 || status === 0 || !gatesPassed;\nconst message = fail\n  ? `⚠️ JobsHub supply FAIL (HTTP ${status}) active=${active} cats=${cats} hours_since_ingest=${hours} gates=${JSON.stringify(data?.gates || {})}`\n  : `✅ JobsHub supply OK active=${active} cats=${cats} hours_since_ingest=${hours}`;\nreturn [{ json: { fail, status, active, hours, cats, gatesPassed, message, raw: data } }];"
+      },
+      "id": "eval-gates",
+      "name": "Evaluate gates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.fail }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-fail",
+      "name": "IF supply failed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [760, 0]
+    },
+    {
+      "parameters": {
+        "content": "## On failure\nWire TRUE branch to:\n- Telegram / Slack / email\n- Optional: HTTP Request POST to trigger a manual scrape runner if you host one\n- Optional: call your model agent webhook to investigate logs\n\nEnv:\n- JOBSHUB_URL=https://jobs.usseo.one\n\nPair with **JobsHub Google/Board Ingest** workflow for continuous discovery → POST /api/ingest/jobs.",
+        "height": 280,
+        "width": 360
+      },
+      "id": "note-fail",
+      "name": "Note: alert channels",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1000, -120]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "m1",
+              "name": "alert_text",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "m2",
+              "name": "severity",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prep-alert",
+      "name": "Prep alert payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1000, 40]
+    }
+  ],
+  "connections": {
+    "Every 3 hours": {
+      "main": [[{ "node": "GET /api/health/supply", "type": "main", "index": 0 }]]
+    },
+    "GET /api/health/supply": {
+      "main": [[{ "node": "Evaluate gates", "type": "main", "index": 0 }]]
+    },
+    "Evaluate gates": {
+      "main": [[{ "node": "IF supply failed", "type": "main", "index": 0 }]]
+    },
+    "IF supply failed": {
+      "main": [
+        [{ "node": "Prep alert payload", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

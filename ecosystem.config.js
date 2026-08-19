@@ -110,5 +110,22 @@ module.exports = {
       out_file: '/var/www/jobs/logs/scraper-quality-output.log',
       time: true,
     },
+    // Every 6 hours: expiry + category recount + supply gates (Telegram/n8n on fail)
+    {
+      name: 'jobs-supply-heartbeat',
+      cwd: '/var/www/jobs',
+      script: 'src/jobs/supplyHeartbeat.js',
+      args: '--alert-only-on-fail',
+      instances: 1,
+      autorestart: false,
+      watch: false,
+      cron_restart: '20 */6 * * *',
+      env_production: {
+        NODE_ENV: 'production',
+      },
+      error_file: '/var/www/jobs/logs/supply-heartbeat-error.log',
+      out_file: '/var/www/jobs/logs/supply-heartbeat-output.log',
+      time: true,
+    },
   ],
 };

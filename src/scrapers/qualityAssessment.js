@@ -214,6 +214,26 @@ async function collectReport(days) {
     no_total_scraper_blackout: scraperScores.length === 0 || scraperScores.some((s) => s.saved > 0),
     dead_sources_under: deadSources.length <= 15,
   };
+
+  // Live inventory gates (independent of the lookback window)
+  let inventory = { active: 0, hours_since_ingest: null, categories_with_jobs: 0 };
+  try {
+    const { getSupplySnapshot } = require('../jobs/expiryMaintenance');
+    const snap = await getSupplySnapshot();
+    inventory = {
+      active: snap.active,
+      kenya_active: snap.kenya_active,
+      hours_since_ingest: snap.hours_since_ingest,
+      categories_with_jobs: snap.categories_with_jobs,
+      gates: snap.gates,
+    };
+    gates.live_active_min = snap.gates.active_min;
+    gates.live_ingest_fresh = snap.gates.ingest_fresh;
+    gates.live_categories_min = snap.gates.categories_min;
+  } catch (err) {
+    console.warn('Supply snapshot unavailable for quality report:', err.message);
+  }
+
   const gatesPassed = Object.values(gates).every(Boolean);
 
   const report = {
@@ -223,6 +243,7 @@ async function collectReport(days) {
     overall_score: overall,
     gates,
     gates_passed: gatesPassed,
+    inventory,
     kenya: ke,
     scrapers: scraperScores,
     job_sources_ingested: sourceScores,
@@ -239,6 +260,7 @@ async function collectReport(days) {
       deadSources,
       staleSources,
       overall,
+      inventory,
     }),
   };
 
@@ -256,6 +278,16 @@ function buildRecommendations(ctx) {
   }
   if ((ctx.ke.total || 0) < 20) {
     recs.push('Kenya-tagged volume is low — expand job_sources, enable MyJobMag, run scrape:kenya bootstrap.');
+  }
+  if (ctx.inventory && (ctx.inventory.active || 0) < 30) {
+    recs.push(
+      `Live active inventory low (${ctx.inventory.active || 0}). Ensure jobs_scraper is up, run npm run scrape:bootstrap, check n8n ingest.`
+    );
+  }
+  if (ctx.inventory && ctx.inventory.hours_since_ingest != null && ctx.inventory.hours_since_ingest > 36) {
+    recs.push(
+      `No ingest for ~${ctx.inventory.hours_since_ingest}h — restart scraper/heartbeat and verify RAPIDAPI_KEY / MyJobMag.`
+    );
   }
   const thin = ctx.sourceScores.filter((s) => s.thin_rate > 0.4 && s.jobs >= 5);
   if (thin.length) {
