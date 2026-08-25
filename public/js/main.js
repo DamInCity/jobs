@@ -509,6 +509,36 @@ async function loadJobs() {
   }
 }
 
+function updateCategoryScrollHint(container) {
+  const wrap = container.closest('.filter-scroll-wrap');
+  if (!wrap) return;
+  const atEnd = container.scrollTop + container.clientHeight >= container.scrollHeight - 2;
+  wrap.classList.toggle('is-at-end', atEnd);
+}
+
+function bindCategoryScrollHint(container) {
+  if (!container.dataset.scrollBound) {
+    container.dataset.scrollBound = '1';
+    container.addEventListener('scroll', () => updateCategoryScrollHint(container), { passive: true });
+  }
+  updateCategoryScrollHint(container);
+}
+
+function scrollSelectedCategoryIntoView(container) {
+  const row = container.querySelector('input[name="category"]:checked')?.closest('.filter-checkbox');
+  if (!row || !container.clientHeight) return;
+  const containerRect = container.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  const above = rowRect.top - containerRect.top;
+  const below = rowRect.bottom - containerRect.bottom;
+  if (above < 0) {
+    container.scrollTop += above - 4;
+  } else if (below > 0) {
+    container.scrollTop += below + 4;
+  }
+  updateCategoryScrollHint(container);
+}
+
 async function loadCategories() {
   try {
     const response = await api('/categories');
@@ -532,6 +562,9 @@ async function loadCategories() {
           `;
         })
         .join('');
+
+      bindCategoryScrollHint(container);
+      scrollSelectedCategoryIntoView(container);
     }
 
     // Discovery chips
@@ -601,6 +634,120 @@ async function loadCategories() {
 // JOB DETAIL
 // ============================================
 
+const HEADING_LEVEL = { H1: 1, H2: 2, H3: 3, H4: 4 };
+
+function sectionSummary(icon, title) {
+  return `<summary class="job-detail-summary">
+    <span class="job-detail-summary-label"><i class="fas ${icon}"></i> ${title}</span>
+    <i class="fas fa-chevron-down job-detail-chevron" aria-hidden="true"></i>
+  </summary>`;
+}
+
+function foldDescriptionHeadings(root) {
+  if (!root) return;
+  const headings = [...root.querySelectorAll('h1, h2, h3, h4')];
+  headings.forEach((heading) => {
+    if (heading.closest('summary, table, thead, tbody')) return;
+    const level = HEADING_LEVEL[heading.tagName];
+    if (!level || !heading.parentNode) return;
+
+    const details = document.createElement('details');
+    details.className = 'jd-fold';
+    details.open = true;
+
+    const summary = document.createElement('summary');
+    summary.className = 'jd-fold-summary';
+    const label = document.createElement('span');
+    label.className = 'jd-fold-label';
+    while (heading.firstChild) label.appendChild(heading.firstChild);
+    if (!label.textContent.trim()) label.textContent = 'Section';
+    const chevron = document.createElement('i');
+    chevron.className = 'fas fa-chevron-down jd-fold-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    summary.append(label, chevron);
+
+    const body = document.createElement('div');
+    body.className = 'jd-fold-body';
+    let node = heading.nextSibling;
+    while (node) {
+      const next = node.nextSibling;
+      if (node.nodeType === 1 && HEADING_LEVEL[node.tagName] && HEADING_LEVEL[node.tagName] <= level) {
+        break;
+      }
+      body.appendChild(node);
+      node = next;
+    }
+
+    details.append(summary, body);
+    heading.replaceWith(details);
+  });
+}
+
+function safeExternalJobUrl(externalLink) {
+  try {
+    if (!externalLink) return null;
+    const parsed = new URL(externalLink);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveJobContentHref(rawHref, externalLink) {
+  const href = String(rawHref || '').trim();
+  if (!href || href === '#' || href.toLowerCase().startsWith('javascript:')) return null;
+  if (/^(mailto:|tel:)/i.test(href)) return href;
+
+  const fallback = safeExternalJobUrl(externalLink);
+
+  try {
+    const resolved = new URL(href, window.location.origin);
+    if (resolved.protocol === 'mailto:' || resolved.protocol === 'tel:') {
+      return resolved.toString();
+    }
+    if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') return null;
+    // Relative or same-origin hrefs are leaked board nav (/, /cv, etc.) — they
+    // must not send the user to the JobsHub homepage.
+    if (resolved.origin === window.location.origin) return fallback;
+    return resolved.href;
+  } catch {
+    return fallback;
+  }
+}
+
+function rewriteJobContentLinks(root, externalLink) {
+  if (!root) return;
+  root.querySelectorAll('a[href]').forEach((anchor) => {
+    const resolved = resolveJobContentHref(anchor.getAttribute('href'), externalLink);
+    if (!resolved) {
+      anchor.removeAttribute('href');
+      anchor.removeAttribute('target');
+      return;
+    }
+    anchor.setAttribute('href', resolved);
+    if (/^(mailto:|tel:)/i.test(resolved)) {
+      anchor.removeAttribute('target');
+      anchor.removeAttribute('rel');
+      return;
+    }
+    anchor.setAttribute('target', '_blank');
+    anchor.setAttribute('rel', 'noopener noreferrer');
+  });
+}
+
+function handleJobContentLinkClick(event, externalLink) {
+  const anchor = event.target.closest('.job-detail-content a');
+  if (!anchor) return;
+  const raw = anchor.getAttribute('href') || '';
+  if (/^(mailto:|tel:)/i.test(raw)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const resolved = resolveJobContentHref(raw, externalLink) || externalLink;
+  if (resolved && /^https?:/i.test(resolved)) {
+    window.open(resolved, '_blank', 'noopener,noreferrer');
+  }
+}
+
 async function openJobModal(jobId) {
   const modal = document.getElementById('jobModal');
   const jobDetail = document.getElementById('jobDetail');
@@ -639,52 +786,58 @@ async function openJobModal(jobId) {
       </div>
 
       ${salary ? `
-        <div class="job-detail-section">
-          <h2><i class="fas fa-coins"></i> Compensation</h2>
+        <details class="job-detail-section" open>
+          ${sectionSummary('fa-coins', 'Compensation')}
           <p class="job-detail-content" style="font-size:1.25rem;font-weight:800;color:var(--mint);letter-spacing:-0.02em">
             ${salary}${job.salary_period ? ` <span style="font-size:0.85rem;font-weight:600;color:var(--muted)">/ ${escapeHtml(job.salary_period)}</span>` : ''}
           </p>
-        </div>
+        </details>
       ` : ''}
 
-      <div class="job-detail-section">
-        <h2><i class="fas fa-align-left"></i> About the role</h2>
-        <div class="job-detail-content">${job.description || ''}</div>
-      </div>
+      <details class="job-detail-section" open>
+        ${sectionSummary('fa-align-left', 'About the role')}
+        <div class="job-detail-content" data-fold="1">${job.description || ''}</div>
+      </details>
 
       ${job.requirements ? `
-        <div class="job-detail-section">
-          <h2><i class="fas fa-list-check"></i> What you’ll need</h2>
-          <div class="job-detail-content">${job.requirements}</div>
-        </div>
+        <details class="job-detail-section" open>
+          ${sectionSummary('fa-list-check', 'What you’ll need')}
+          <div class="job-detail-content" data-fold="1">${job.requirements}</div>
+        </details>
       ` : ''}
 
       ${job.benefits ? `
-        <div class="job-detail-section">
-          <h2><i class="fas fa-gift"></i> Benefits</h2>
-          <div class="job-detail-content">${job.benefits}</div>
-        </div>
+        <details class="job-detail-section" open>
+          ${sectionSummary('fa-gift', 'Benefits')}
+          <div class="job-detail-content" data-fold="1">${job.benefits}</div>
+        </details>
       ` : ''}
 
       <div class="job-detail-actions">
         <button class="btn btn-outline" type="button" data-modal-save="${escapeHtml(job.id)}">
           <i class="far fa-bookmark"></i> Save for later
         </button>
-        <a href="${escapeHtml(job.external_link || '#')}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-apply" data-track-click="${escapeHtml(job.id)}">
+        <a href="${escapeHtml(job.application_url || job.external_link || '#')}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-apply" data-track-click="${escapeHtml(job.id)}">
           Apply at ${escapeHtml(job.company_name || 'company')}
           <i class="fas fa-external-link-alt"></i>
         </a>
       </div>
 
       ${response.data.relatedJobs?.length > 0 ? `
-        <div class="job-detail-section" style="margin-top:2rem">
-          <h2><i class="fas fa-star"></i> Similar roles</h2>
+        <details class="job-detail-section" open style="margin-top:2rem">
+          ${sectionSummary('fa-star', 'Similar roles')}
           <div class="jobs-grid" style="margin-top:1rem" id="relatedJobsGrid">
             ${response.data.relatedJobs.map((j) => createJobCard(j)).join('')}
           </div>
-        </div>
+        </details>
       ` : ''}
     `;
+
+    jobDetail.dataset.externalLink = job.external_link || '';
+    jobDetail.querySelectorAll('.job-detail-content[data-fold="1"]').forEach((el) => {
+      foldDescriptionHeadings(el);
+      rewriteJobContentLinks(el, job.external_link);
+    });
 
     jobDetail.querySelector('[data-modal-save]')?.addEventListener('click', (e) => {
       saveJob(e.currentTarget.dataset.modalSave, e.currentTarget);
@@ -1021,6 +1174,13 @@ function openFiltersSheet() {
   document.getElementById('filtersSidebar')?.classList.add('is-open');
   document.getElementById('filtersBackdrop')?.classList.add('show');
   document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => {
+    const container = document.getElementById('categoryFilters');
+    if (container) {
+      scrollSelectedCategoryIntoView(container);
+      updateCategoryScrollHint(container);
+    }
+  });
 }
 
 function closeFiltersSheet() {
@@ -1147,6 +1307,10 @@ function initEventListeners() {
 
   document.getElementById('modalOverlay')?.addEventListener('click', closeJobModal);
   document.getElementById('modalClose')?.addEventListener('click', closeJobModal);
+  document.getElementById('jobDetail')?.addEventListener('click', (e) => {
+    const host = e.currentTarget;
+    handleJobContentLinkClick(e, host?.dataset.externalLink || '');
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeJobModal();

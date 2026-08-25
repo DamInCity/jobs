@@ -402,12 +402,12 @@ router.post('/:id/click', optionalAuth, asyncHandler(async (req, res) => {
   `, [id, userId, ipAddress, userAgent]);
 
   // Get the external link to redirect to
-  const result = await db.query('SELECT external_link FROM jobs WHERE id = $1', [id]);
+  const result = await db.query('SELECT COALESCE(application_url, external_link) AS redirect_url FROM jobs WHERE id = $1', [id]);
 
   res.json({
     success: true,
     data: {
-      redirectUrl: result.rows[0]?.external_link,
+      redirectUrl: result.rows[0]?.redirect_url,
     },
   });
 }));

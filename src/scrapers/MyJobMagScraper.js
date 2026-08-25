@@ -18,6 +18,124 @@ class MyJobMagScraper extends BaseScraper {
     console.log('   Cheerio parser initialized');
   }
 
+  /**
+   * Extract the real application URL from the "Method of Application" section.
+   *
+   * Priority:
+   *   1. Absolute external http(s) link inside the method section (employer form/ATS)
+   *   2. Relative /apply-now/{id} wrapper -> resolved by following its redirects
+   *
+   * Never returns board nav / CV-builder links (/cv, /cv-match, /contact,
+   * /jobs-at/*, /job-application/*) or mailto/tel/javascript targets.
+   * Returns { applyUrl, needsResolution } — needsResolution=true means applyUrl
+   * is a myjobmag /apply-now/ wrapper that should be resolved via HTTP redirect.
+   */
+  extractApplyUrl($) {
+    const EXCLUDED_PATHS = [
+      /^\/cv\b/i,
+      /^\/cv-match/i,
+      /^\/contact/i,
+      /^\/jobs-at\//i,
+      /^\/jobs-location\//i,
+      /^\/jobs-by-/i,
+      /^\/job-application\//i,
+      /^\/(page|category)\b/i,
+    ];
+
+    const candidates = [];
+    const collect = ($scope) => {
+      $scope.find('a[href]').each((_, el) => {
+        const href = ($(el).attr('href') || '').trim();
+        if (!href) return;
+        if (/^(mailto:|tel:|javascript:)/i.test(href)) return;
+        if (href.startsWith('#')) return;
+
+        let parsed;
+        try {
+          parsed = new URL(href, this.baseUrl);
+        } catch {
+          return;
+        }
+        if (!['http:', 'https:'].includes(parsed.protocol)) return;
+
+        const path = parsed.pathname;
+        if (EXCLUDED_PATHS.some((re) => re.test(path))) return;
+
+        // Same-origin wrapper: /apply-now/{id} redirects to the employer ATS
+        if (/^\/apply-now\/\d+/.test(path)) {
+          candidates.push({ type: 'wrapper', url: parsed.toString() });
+          return;
+        }
+
+        // Any other same-origin link is board nav — ignore
+        if (parsed.host && parsed.host === new URL(this.baseUrl).host) return;
+
+        candidates.push({ type: 'direct', url: parsed.toString() });
+      });
+    };
+
+    // Prefer anchors scoped to the Method of Application section
+    const methodHeading = $('h2#application-method').first();
+    if (methodHeading.length > 0) {
+      let section = methodHeading.next();
+      while (section.length > 0) {
+        // Stop at the CV-builder footer paragraph (clear:both style block)
+        if (section.is('p') && /clear:\s*both/i.test(section.attr('style') || '')) break;
+        collect(section);
+        section = section.next();
+      }
+    }
+
+    // Fallback: whole document EXCEPT board chrome. Some listings omit the
+    // heading id — but a naive full-document scan leaks footer/nav links
+    // (e.g. myjobmagghana.com), so only accept links inside <article> or
+    // main content containers there. Email-based listings have no link at
+    // all in the method section and correctly return null.
+    if (candidates.length === 0) {
+      const scoped = $('article, .job-details, .mag-b').toArray();
+      for (const scope of scoped.slice(0, 40)) {
+        collect($(scope));
+        if (candidates.length > 0 && candidates.some((c) => c.type === 'direct')) break;
+      }
+    }
+
+    const direct = candidates.find((c) => c.type === 'direct');
+    if (direct) return { applyUrl: direct.url, needsResolution: false };
+
+    const wrapper = candidates.find((c) => c.type === 'wrapper');
+    if (wrapper) return { applyUrl: wrapper.url, needsResolution: true };
+
+    return { applyUrl: null, needsResolution: false };
+  }
+
+  /**
+   * Follow a myjobmag /apply-now/{id} wrapper URL to its final destination
+   * (employer ATS). Returns the original URL if resolution fails — the wrapper
+   * itself still redirects client-side, so it remains a usable apply link.
+   */
+  async resolveRedirect(url) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      const response = await fetch(url, {
+        redirect: 'follow',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+        },
+      });
+      clearTimeout(timer);
+      // Drain body so the socket is released
+      await response.arrayBuffer().catch(() => {});
+      const finalUrl = response.url || url;
+      if (/^https?:\/\//i.test(finalUrl)) return finalUrl;
+      return url;
+    } catch {
+      return url;
+    }
+  }
+
   async close() {
     // No browser to close for Cheerio
     this.cheerio = null;
@@ -165,6 +283,21 @@ class MyJobMagScraper extends BaseScraper {
         taxonomies: fieldText ? [fieldText] : [],
       });
 
+      // Real apply link from the Method of Application section
+      const { applyUrl, needsResolution } = this.extractApplyUrl($);
+      let applicationUrl = null;
+      if (applyUrl) {
+        applicationUrl = needsResolution ? await this.resolveRedirect(applyUrl) : applyUrl;
+        // Guard against a resolved redirect bouncing back to the same board
+        try {
+          if (new URL(applicationUrl).host === new URL(this.baseUrl).host) {
+            applicationUrl = null;
+          }
+        } catch {
+          applicationUrl = null;
+        }
+      }
+
       let postedDate =
         $('[itemprop="datePosted"]').attr('datetime') ||
         $('time').attr('datetime') ||
@@ -190,6 +323,7 @@ class MyJobMagScraper extends BaseScraper {
         salary_max: salaryInfo.max,
         salary_currency: salaryInfo.currency || 'KES',
         external_link: url,
+        application_url: applicationUrl,
         posted_date: postedDate ? new Date(postedDate) : new Date(),
         expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       };
