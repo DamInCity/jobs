@@ -402,7 +402,15 @@ router.post('/:id/click', optionalAuth, asyncHandler(async (req, res) => {
   `, [id, userId, ipAddress, userAgent]);
 
   // Get the external link to redirect to
-  const result = await db.query('SELECT COALESCE(application_url, external_link) AS redirect_url FROM jobs WHERE id = $1', [id]);
+  const result = await db.query(
+    `SELECT CASE
+       WHEN application_url ILIKE 'mailto:%' THEN application_url
+       WHEN application_url ~ '^https?://' AND application_url !~* 'myjobmag' THEN application_url
+       ELSE NULL
+     END AS redirect_url
+     FROM jobs WHERE id = $1`,
+    [id]
+  );
 
   res.json({
     success: true,

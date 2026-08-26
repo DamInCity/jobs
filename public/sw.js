@@ -1,5 +1,5 @@
 /* JobsHub service worker — offline shell + static asset cache */
-const CACHE_VERSION = 'jobshub-v4';
+const CACHE_VERSION = 'jobshub-v5';
 const PRECACHE = [
   '/',
   '/manifest.webmanifest',

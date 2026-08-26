@@ -4,6 +4,7 @@
  */
 
 const BaseScraper = require('./BaseScraper');
+const { extractApplyFromCheerio, sanitizeListingHtml, isEmployerHttpUrl } = require('./myjobmagHtml');
 
 class MyJobMagScraper extends BaseScraper {
   constructor() {
@@ -31,75 +32,7 @@ class MyJobMagScraper extends BaseScraper {
    * is a myjobmag /apply-now/ wrapper that should be resolved via HTTP redirect.
    */
   extractApplyUrl($) {
-    const EXCLUDED_PATHS = [
-      /^\/cv\b/i,
-      /^\/cv-match/i,
-      /^\/contact/i,
-      /^\/jobs-at\//i,
-      /^\/jobs-location\//i,
-      /^\/jobs-by-/i,
-      /^\/job-application\//i,
-      /^\/(page|category)\b/i,
-    ];
-    const candidatesDirect = [];
-    const candidatesWrapper = [];
-    const candidatesCv = [];
-
-    const collect = ($scope) => {
-      $scope.find('a[href]').each((_, el) => {
-        const href = ($(el).attr('href') || '').trim();
-        if (!href) return;
-        if (/^(mailto:|tel:|javascript:)/i.test(href)) return;
-        if (href.startsWith('#')) return;
-        let parsed;
-        try { parsed = new URL(href, this.baseUrl); } catch { return; }
-        if (!['http:', 'https:'].includes(parsed.protocol)) return;
-        const path = parsed.pathname;
-        if (path === '/' || EXCLUDED_PATHS.some((re) => re.test(path))) return;
-        if (/^\/apply-now\/\d+/.test(path)) {
-          (parsed.protocol === 'https:' && parsed.host !== new URL(this.baseUrl).host ? candidatesDirect : candidatesWrapper).push({ url: parsed.toString() });
-          return;
-        }
-        // CV links: relative / absolute links whose path/text indicates CV/upload/download
-        if (/^\/cv\b/i.test(path) || /upload/i.test(href) || /download/i.test($(el).text())) {
-          candidatesCv.push({ url: parsed.toString() });
-          return;
-        }
-        // Any external (non-board) link inside method section = direct apply
-        if (parsed.host !== new URL(this.baseUrl).host) {
-          candidatesDirect.push({ url: parsed.toString() });
-        }
-      });
-    };
-
-    const methodHeading = $('h2#application-method').first();
-    if (methodHeading.length > 0) {
-      let section = methodHeading.next();
-      while (section.length > 0) {
-        if (section.is('p') && /clear:\s*both/i.test(section.attr('style') || '')) break;
-        collect(section);
-        section = section.next();
-      }
-    }
-    if (candidatesDirect.length === 0 && candidatesWrapper.length === 0 && candidatesCv.length === 0) {
-      const scopes = $('article, .job-details, .mag-b').toArray();
-      for (const el of scopes.slice(0, 60)) {
-        collect($(el));
-        if (candidatesDirect.length || candidatesWrapper.length || candidatesCv.length) break;
-      }
-    }
-
-    let applyUrl = null; let needsResolution = false;
-    const direct = candidatesDirect.find((c) => !/myjobmag/.test(new URL(c.url).host));
-    if (direct) { applyUrl = direct.url; needsResolution = false; }
-    else if (candidatesDirect.length > 0) { applyUrl = candidatesDirect[0].url; needsResolution = false; }
-    else if (candidatesWrapper.length > 0) { applyUrl = candidatesWrapper[0].url; needsResolution = true; }
-
-    let cvUrl = null;
-    const cvLink = candidatesCv.find((c) => applyUrl ? c.url !== applyUrl : true);
-    if (cvLink) cvUrl = cvLink.url;
-
-    return { applyUrl, needsResolution, cvUrl };
+    return extractApplyFromCheerio($, this.baseUrl);
   }
 
   /**
@@ -252,11 +185,12 @@ class MyJobMagScraper extends BaseScraper {
         this.extractKeyInfo($, 'Salary') ||
         '';
 
-      const description =
+      const rawDescription =
         $('.job-description').html() ||
         $('.job-details').html() ||
         $('[itemprop="description"]').html() ||
         '';
+      const description = sanitizeListingHtml(rawDescription, this.cheerio, this.baseUrl);
 
       const requirements =
         $('.requirements').html() ||
@@ -277,16 +211,15 @@ class MyJobMagScraper extends BaseScraper {
         taxonomies: fieldText ? [fieldText] : [],
       });
 
-      // Real apply link from the Method of Application section
-      const { applyUrl, needsResolution, cvUrl } = this.extractApplyUrl($);
+      // Real apply target from Method of Application (employer URL or email)
+      const { applyUrl, needsResolution, email } = this.extractApplyUrl($);
       let applicationUrl = null;
       if (applyUrl) {
-        applicationUrl = needsResolution ? await this.resolveRedirect(applyUrl) : applyUrl;
-        try {
-          if (new URL(applicationUrl).host === new URL(this.baseUrl).host) {
-            applicationUrl = null;
-          }
-        } catch { applicationUrl = null; }
+        const resolved = needsResolution ? await this.resolveRedirect(applyUrl) : applyUrl;
+        applicationUrl = isEmployerHttpUrl(resolved) ? resolved : null;
+      }
+      if (!applicationUrl && email) {
+        applicationUrl = `mailto:${email}`;
       }
 
       let postedDate =
@@ -315,7 +248,6 @@ class MyJobMagScraper extends BaseScraper {
         salary_currency: salaryInfo.currency || 'KES',
         external_link: url,
         application_url: applicationUrl,
-        cv_url: (cvUrl && cvUrl !== applicationUrl) ? cvUrl : null,
         posted_date: postedDate ? new Date(postedDate) : new Date(),
         expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       };

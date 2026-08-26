@@ -687,18 +687,34 @@ function safeExternalJobUrl(externalLink) {
   try {
     if (!externalLink) return null;
     const parsed = new URL(externalLink);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    if (/myjobmag/i.test(parsed.hostname)) return null;
+    return parsed.href;
   } catch {
     return null;
   }
 }
 
-function resolveJobContentHref(rawHref, externalLink) {
+function isEmployerHttpUrl(url) {
+  try {
+    const u = new URL(String(url || ''));
+    return (u.protocol === 'http:' || u.protocol === 'https:') && !/myjobmag/i.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function applyMailto(url) {
+  const raw = String(url || '').trim();
+  if (!/^mailto:/i.test(raw)) return null;
+  const addr = raw.replace(/^mailto:/i, '').split('?')[0].trim();
+  return addr || null;
+}
+
+function resolveJobContentHref(rawHref) {
   const href = String(rawHref || '').trim();
   if (!href || href === '#' || href.toLowerCase().startsWith('javascript:')) return null;
   if (/^(mailto:|tel:)/i.test(href)) return href;
-
-  const fallback = safeExternalJobUrl(externalLink);
 
   try {
     const resolved = new URL(href, window.location.origin);
@@ -706,22 +722,21 @@ function resolveJobContentHref(rawHref, externalLink) {
       return resolved.toString();
     }
     if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') return null;
-    // Relative or same-origin hrefs are leaked board nav (/, /cv, etc.) — they
-    // must not send the user to the JobsHub homepage.
-    if (resolved.origin === window.location.origin) return fallback;
+    if (resolved.origin === window.location.origin) return null;
+    if (/myjobmag/i.test(resolved.hostname)) return null;
     return resolved.href;
   } catch {
-    return fallback;
+    return null;
   }
 }
 
-function rewriteJobContentLinks(root, externalLink) {
+function rewriteJobContentLinks(root) {
   if (!root) return;
   root.querySelectorAll('a[href]').forEach((anchor) => {
-    const resolved = resolveJobContentHref(anchor.getAttribute('href'), externalLink);
+    const resolved = resolveJobContentHref(anchor.getAttribute('href'));
     if (!resolved) {
-      anchor.removeAttribute('href');
-      anchor.removeAttribute('target');
+      const text = document.createTextNode(anchor.textContent || '');
+      anchor.replaceWith(text);
       return;
     }
     anchor.setAttribute('href', resolved);
@@ -735,17 +750,50 @@ function rewriteJobContentLinks(root, externalLink) {
   });
 }
 
-function handleJobContentLinkClick(event, externalLink) {
+function stripBoardChrome(root) {
+  if (!root) return;
+  root.querySelectorAll('a.prompt-link, .icon-arrow, svg.icon-arrow').forEach((n) => n.remove());
+  root.querySelectorAll('p, a, span, b, strong').forEach((el) => {
+    const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (/check how your cv aligns/i.test(t) || /build your cv for free/i.test(t)) {
+      (el.closest('p') || el).remove();
+    }
+  });
+
+  const methodFold = [...root.querySelectorAll('details.jd-fold')].find((d) =>
+    /method of application/i.test(d.querySelector('.jd-fold-label')?.textContent || '')
+  );
+  const methodHeading = root.querySelector('#application-method, h2#application-method');
+
+  root.querySelectorAll('a[href]').forEach((anchor) => {
+    const href = anchor.getAttribute('href') || '';
+    if (/^(mailto:|tel:)/i.test(href)) return;
+    const inMethod = !!(anchor.closest('details.jd-fold') === methodFold
+      || (methodHeading && methodHeading.contains(anchor))
+      || (methodHeading && methodHeading.parentElement?.contains(anchor)
+          && methodHeading.compareDocumentPosition(anchor) & Node.DOCUMENT_POSITION_FOLLOWING));
+    const resolved = resolveJobContentHref(href);
+    if (inMethod && resolved && /^https?:/i.test(resolved)) return;
+    if (/^(mailto:|tel:)/i.test(href)) return;
+    const text = document.createTextNode(anchor.textContent || '');
+    anchor.replaceWith(text);
+  });
+}
+
+function handleJobContentLinkClick(event) {
   const anchor = event.target.closest('.job-detail-content a');
   if (!anchor) return;
   const raw = anchor.getAttribute('href') || '';
   if (/^(mailto:|tel:)/i.test(raw)) return;
+  const resolved = resolveJobContentHref(raw);
+  if (!resolved || !/^https?:/i.test(resolved)) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
   event.preventDefault();
   event.stopPropagation();
-  const resolved = resolveJobContentHref(raw, externalLink) || externalLink;
-  if (resolved && /^https?:/i.test(resolved)) {
-    window.open(resolved, '_blank', 'noopener,noreferrer');
-  }
+  window.open(resolved, '_blank', 'noopener,noreferrer');
 }
 
 async function openJobModal(jobId) {
@@ -763,16 +811,11 @@ async function openJobModal(jobId) {
     const response = await api(`/jobs/${jobId}`);
     const job = response.data.job || response.data;
     const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency, job.salary_period);
-    const hue = logoHue(job.company_name);
-    const letter = escapeHtml((job.company_name || '?').charAt(0).toUpperCase());
-
-    const logoBlock = job.company_logo_url
-      ? `<img src="${escapeHtml(job.company_logo_url)}" alt="">`
-      : `<div class="job-logo-placeholder hue-${hue}" style="width:100%;height:100%;border-radius:inherit;font-size:1.5rem">${letter}</div>`;
+    const applyHttp = isEmployerHttpUrl(job.application_url) ? job.application_url : null;
+    const applyEmail = applyMailto(job.application_url);
 
     jobDetail.innerHTML = `
       <div class="job-detail-header">
-        <div class="job-detail-logo">${logoBlock}</div>
         <div class="job-detail-info">
           <h1 id="jobDetailTitle">${escapeHtml(job.title)}</h1>
           <p class="job-detail-company">${escapeHtml(job.company_name)}</p>
@@ -813,23 +856,21 @@ async function openJobModal(jobId) {
         </details>
       ` : ''}
 
-      <div class="job-detail-method">
-        <h3>Method of Application</h3>
-        <div class="method-links">
-          ${job.application_url ? `<a href="${escapeHtml(job.application_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-apply">Apply directly <i class="fas fa-external-link-alt"></i></a>` : ''}
-          ${job.cv_url ? `<a href="${escapeHtml(job.cv_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline">CV / Download <i class="fas fa-file-download"></i></a>` : ''}
+      ${applyEmail ? `
+        <div class="job-detail-method">
+          <h3>Method of Application</h3>
+          <p class="job-detail-email">Email your application to <a href="mailto:${escapeHtml(applyEmail)}">${escapeHtml(applyEmail)}</a></p>
         </div>
-        ${!job.application_url && job.external_link ? `<p style="margin-top:0.75rem;font-size:0.9rem;color:var(--muted);">This listing links back to <a href="${escapeHtml(job.external_link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(new URL(job.external_link).hostname)}</a>. Direct application links may be unavailable for older listings.</p>` : ''}
-      </div>
+      ` : ''}
 
       <div class="job-detail-actions">
         <button class="btn btn-outline" type="button" data-modal-save="${escapeHtml(job.id)}">
           <i class="far fa-bookmark"></i> Save for later
         </button>
-        <a href="${escapeHtml(job.application_url || job.external_link || '#')}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-apply" data-track-click="${escapeHtml(job.id)}">
+        ${applyHttp ? `<a href="${escapeHtml(applyHttp)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-apply" data-track-click="${escapeHtml(job.id)}">
           Apply at ${escapeHtml(job.company_name || 'company')}
           <i class="fas fa-external-link-alt"></i>
-        </a>
+        </a>` : ''}
       </div>
 
       ${response.data.relatedJobs?.length > 0 ? `
@@ -842,10 +883,10 @@ async function openJobModal(jobId) {
       ` : ''}
     `;
 
-    jobDetail.dataset.externalLink = job.external_link || '';
     jobDetail.querySelectorAll('.job-detail-content[data-fold="1"]').forEach((el) => {
       foldDescriptionHeadings(el);
-      rewriteJobContentLinks(el, job.external_link);
+      stripBoardChrome(el);
+      rewriteJobContentLinks(el);
     });
 
     jobDetail.querySelector('[data-modal-save]')?.addEventListener('click', (e) => {
@@ -1316,10 +1357,7 @@ function initEventListeners() {
 
   document.getElementById('modalOverlay')?.addEventListener('click', closeJobModal);
   document.getElementById('modalClose')?.addEventListener('click', closeJobModal);
-  document.getElementById('jobDetail')?.addEventListener('click', (e) => {
-    const host = e.currentTarget;
-    handleJobContentLinkClick(e, host?.dataset.externalLink || '');
-  });
+  document.getElementById('jobDetail')?.addEventListener('click', handleJobContentLinkClick);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeJobModal();
@@ -1449,57 +1487,61 @@ function initHeroRotator() {
   const HOLD_MS = 950;
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-  // Fallback phrase shown immediately — before JS rotates anything.
-  // The server-rendered default already says "waking up for"; if rotation
-  // hasn't started (slow load / interrupted JS), "waking up for" remains
-  // visible. We inject the user-requested "you" as the first rotation
-  // phrase and keep rotation viewport-gated.
-  const heroSection = document.querySelector('.hero-section') || document.getElementById('heroSection') || document.getElementById('hero');
-  let started = false;
-  let observer = null;
+  if (!el.textContent.trim()) el.textContent = 'you';
 
-  const startRotation = () => {
-    if (started) return;
-    started = true;
-    if (observer) observer.disconnect();
-    runRotation();
-  };
-
-  const runRotation = () => {
-    if (reduceMotion) { el.textContent = phrases[phrases.length - 1]; return; }
-    let i = 0; // start at 'you' so fallback phrase is shown first
-    el.textContent = phrases[i]; // show 'you' immediately
-    i++;
-    const swap = () => {
-      if (i >= phrases.length) return;
-      el.classList.add('swap-out');
-      setTimeout(() => {
-        el.textContent = phrases[i];
-        el.classList.remove('swap-out');
-        i++;
-        setTimeout(swap, HOLD_MS);
-      }, SWAP_MS);
-    };
-    setTimeout(swap, 950);
-  };
-
-  if (!heroSection) {
-    // No hero section — just show the final landing phrase and exit
-    el.textContent = phrases[phrases.length - 1];
+  const heroSection = document.querySelector('.hero');
+  if (!heroSection || reduceMotion) {
+    el.textContent = 'you';
     return;
   }
 
-  // Viewport watcher: only animate when user is on the hero section.
-  observer = new IntersectionObserver((entries) => {
+  let i = Math.max(0, phrases.indexOf(el.textContent.trim()));
+  let inView = false;
+  let timer = null;
+
+  const clearTimers = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  const swap = () => {
+    if (!inView) return;
+    el.classList.add('swap-out');
+    timer = setTimeout(() => {
+      if (!inView) {
+        el.classList.remove('swap-out');
+        return;
+      }
+      i = (i + 1) % phrases.length;
+      el.textContent = phrases[i];
+      el.classList.remove('swap-out');
+      timer = setTimeout(swap, HOLD_MS);
+    }, SWAP_MS);
+  };
+
+  const start = () => {
+    if (inView) return;
+    inView = true;
+    clearTimers();
+    el.classList.remove('swap-out');
+    timer = setTimeout(swap, HOLD_MS);
+  };
+
+  const stop = () => {
+    inView = false;
+    clearTimers();
+    el.classList.remove('swap-out');
+  };
+
+  const observer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
-      if (entry.isIntersecting) startRotation();
+      if (entry.isIntersecting) start();
+      else stop();
     }
   }, { threshold: 0.15 });
   observer.observe(heroSection);
-
-  // Defensive: if observer hasn't triggered within 2.5s (e.g. hero at very
-  // top and already intersected before observer registered), start anyway.
-  setTimeout(() => { if (!started) startRotation(); }, 2500);
 }
 
 async function init() {

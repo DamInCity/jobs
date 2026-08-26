@@ -133,7 +133,20 @@ function preprocessJob(raw, options = {}) {
 
   let applicationUrl = input.application_url || input.apply_url || null;
   if (applicationUrl) {
-    applicationUrl = normalizeUrl(String(applicationUrl)) || applicationUrl;
+    const raw = String(applicationUrl).trim();
+    if (/^mailto:/i.test(raw)) {
+      const addr = raw.replace(/^mailto:/i, '').split('?')[0].trim();
+      applicationUrl = addr ? `mailto:${addr}` : null;
+    } else {
+      applicationUrl = normalizeUrl(raw) || null;
+      try {
+        if (applicationUrl && /myjobmag/i.test(new URL(applicationUrl).hostname)) {
+          applicationUrl = null;
+        }
+      } catch {
+        applicationUrl = null;
+      }
+    }
   }
   let cvUrlField = input.cv_url || input.cv_link || null;
   if (cvUrlField) {
