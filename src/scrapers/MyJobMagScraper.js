@@ -41,71 +41,65 @@ class MyJobMagScraper extends BaseScraper {
       /^\/job-application\//i,
       /^\/(page|category)\b/i,
     ];
+    const candidatesDirect = [];
+    const candidatesWrapper = [];
+    const candidatesCv = [];
 
-    const candidates = [];
     const collect = ($scope) => {
       $scope.find('a[href]').each((_, el) => {
         const href = ($(el).attr('href') || '').trim();
         if (!href) return;
         if (/^(mailto:|tel:|javascript:)/i.test(href)) return;
         if (href.startsWith('#')) return;
-
         let parsed;
-        try {
-          parsed = new URL(href, this.baseUrl);
-        } catch {
-          return;
-        }
+        try { parsed = new URL(href, this.baseUrl); } catch { return; }
         if (!['http:', 'https:'].includes(parsed.protocol)) return;
-
         const path = parsed.pathname;
-        if (EXCLUDED_PATHS.some((re) => re.test(path))) return;
-
-        // Same-origin wrapper: /apply-now/{id} redirects to the employer ATS
+        if (path === '/' || EXCLUDED_PATHS.some((re) => re.test(path))) return;
         if (/^\/apply-now\/\d+/.test(path)) {
-          candidates.push({ type: 'wrapper', url: parsed.toString() });
+          (parsed.protocol === 'https:' && parsed.host !== new URL(this.baseUrl).host ? candidatesDirect : candidatesWrapper).push({ url: parsed.toString() });
           return;
         }
-
-        // Any other same-origin link is board nav — ignore
-        if (parsed.host && parsed.host === new URL(this.baseUrl).host) return;
-
-        candidates.push({ type: 'direct', url: parsed.toString() });
+        // CV links: relative / absolute links whose path/text indicates CV/upload/download
+        if (/^\/cv\b/i.test(path) || /upload/i.test(href) || /download/i.test($(el).text())) {
+          candidatesCv.push({ url: parsed.toString() });
+          return;
+        }
+        // Any external (non-board) link inside method section = direct apply
+        if (parsed.host !== new URL(this.baseUrl).host) {
+          candidatesDirect.push({ url: parsed.toString() });
+        }
       });
     };
 
-    // Prefer anchors scoped to the Method of Application section
     const methodHeading = $('h2#application-method').first();
     if (methodHeading.length > 0) {
       let section = methodHeading.next();
       while (section.length > 0) {
-        // Stop at the CV-builder footer paragraph (clear:both style block)
         if (section.is('p') && /clear:\s*both/i.test(section.attr('style') || '')) break;
         collect(section);
         section = section.next();
       }
     }
-
-    // Fallback: whole document EXCEPT board chrome. Some listings omit the
-    // heading id — but a naive full-document scan leaks footer/nav links
-    // (e.g. myjobmagghana.com), so only accept links inside <article> or
-    // main content containers there. Email-based listings have no link at
-    // all in the method section and correctly return null.
-    if (candidates.length === 0) {
-      const scoped = $('article, .job-details, .mag-b').toArray();
-      for (const scope of scoped.slice(0, 40)) {
-        collect($(scope));
-        if (candidates.length > 0 && candidates.some((c) => c.type === 'direct')) break;
+    if (candidatesDirect.length === 0 && candidatesWrapper.length === 0 && candidatesCv.length === 0) {
+      const scopes = $('article, .job-details, .mag-b').toArray();
+      for (const el of scopes.slice(0, 60)) {
+        collect($(el));
+        if (candidatesDirect.length || candidatesWrapper.length || candidatesCv.length) break;
       }
     }
 
-    const direct = candidates.find((c) => c.type === 'direct');
-    if (direct) return { applyUrl: direct.url, needsResolution: false };
+    let applyUrl = null; let needsResolution = false;
+    const direct = candidatesDirect.find((c) => !/myjobmag/.test(new URL(c.url).host));
+    if (direct) { applyUrl = direct.url; needsResolution = false; }
+    else if (candidatesDirect.length > 0) { applyUrl = candidatesDirect[0].url; needsResolution = false; }
+    else if (candidatesWrapper.length > 0) { applyUrl = candidatesWrapper[0].url; needsResolution = true; }
 
-    const wrapper = candidates.find((c) => c.type === 'wrapper');
-    if (wrapper) return { applyUrl: wrapper.url, needsResolution: true };
+    let cvUrl = null;
+    const cvLink = candidatesCv.find((c) => applyUrl ? c.url !== applyUrl : true);
+    if (cvLink) cvUrl = cvLink.url;
 
-    return { applyUrl: null, needsResolution: false };
+    return { applyUrl, needsResolution, cvUrl };
   }
 
   /**
@@ -284,18 +278,15 @@ class MyJobMagScraper extends BaseScraper {
       });
 
       // Real apply link from the Method of Application section
-      const { applyUrl, needsResolution } = this.extractApplyUrl($);
+      const { applyUrl, needsResolution, cvUrl } = this.extractApplyUrl($);
       let applicationUrl = null;
       if (applyUrl) {
         applicationUrl = needsResolution ? await this.resolveRedirect(applyUrl) : applyUrl;
-        // Guard against a resolved redirect bouncing back to the same board
         try {
           if (new URL(applicationUrl).host === new URL(this.baseUrl).host) {
             applicationUrl = null;
           }
-        } catch {
-          applicationUrl = null;
-        }
+        } catch { applicationUrl = null; }
       }
 
       let postedDate =
@@ -324,6 +315,7 @@ class MyJobMagScraper extends BaseScraper {
         salary_currency: salaryInfo.currency || 'KES',
         external_link: url,
         application_url: applicationUrl,
+        cv_url: (cvUrl && cvUrl !== applicationUrl) ? cvUrl : null,
         posted_date: postedDate ? new Date(postedDate) : new Date(),
         expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       };

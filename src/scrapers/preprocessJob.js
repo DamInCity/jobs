@@ -135,6 +135,10 @@ function preprocessJob(raw, options = {}) {
   if (applicationUrl) {
     applicationUrl = normalizeUrl(String(applicationUrl)) || applicationUrl;
   }
+  let cvUrlField = input.cv_url || input.cv_link || null;
+  if (cvUrlField) {
+    cvUrlField = normalizeUrl(String(cvUrlField)) || null;
+  }
 
   const job = {
     title,
@@ -155,6 +159,7 @@ function preprocessJob(raw, options = {}) {
     salary_period: salary.period,
     external_link: externalLink,
     application_url: applicationUrl,
+    cv_url: cvUrlField || null,
     source_url: input.source_url || input.list_url || options.sourceUrl || null,
     source_type: sourceType,
     verification_status: verificationStatus,

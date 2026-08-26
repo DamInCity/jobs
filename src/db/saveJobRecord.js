@@ -71,11 +71,11 @@ async function saveJobRecord(rawJob, options = {}) {
         title, slug, company_name, company_logo_url, company_website, description,
         requirements, benefits, location, county, country_code, job_type, category_id,
         salary_min, salary_max, salary_currency, salary_period, external_link,
-        application_url, source_url, source_type, verification_status, is_aggregated,
+        application_url, cv_url, source_url, source_type, verification_status, is_aggregated,
         job_source_id, deadline, posted_date, expiry_date, status, source
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
-        $19, $20, $21, $22, $23, $24, $25, $26, $27, 'active', $28
+        $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, 'active', $29
       )
       ON CONFLICT (external_link) DO NOTHING
       RETURNING id`,
@@ -99,6 +99,7 @@ async function saveJobRecord(rawJob, options = {}) {
         job.salary_period || 'yearly',
         job.external_link,
         job.application_url || null,
+        job.cv_url || null,
         job.source_url || null,
         job.source_type || 'BOARD',
         job.verification_status || 'aggregated',

@@ -813,6 +813,15 @@ async function openJobModal(jobId) {
         </details>
       ` : ''}
 
+      <div class="job-detail-method">
+        <h3>Method of Application</h3>
+        <div class="method-links">
+          ${job.application_url ? `<a href="${escapeHtml(job.application_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-apply">Apply directly <i class="fas fa-external-link-alt"></i></a>` : ''}
+          ${job.cv_url ? `<a href="${escapeHtml(job.cv_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline">CV / Download <i class="fas fa-file-download"></i></a>` : ''}
+        </div>
+        ${!job.application_url && job.external_link ? `<p style="margin-top:0.75rem;font-size:0.9rem;color:var(--muted);">This listing links back to <a href="${escapeHtml(job.external_link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(new URL(job.external_link).hostname)}</a>. Direct application links may be unavailable for older listings.</p>` : ''}
+      </div>
+
       <div class="job-detail-actions">
         <button class="btn btn-outline" type="button" data-modal-save="${escapeHtml(job.id)}">
           <i class="far fa-bookmark"></i> Save for later
@@ -1428,33 +1437,69 @@ function initHeroRotator() {
   const el = document.getElementById('heroRotator');
   if (!el) return;
 
-  // Last entry is the landing phrase — the sequence always ends on it.
   const phrases = [
+    'you',
     'grinding for',
     'diving into',
     'showing up for',
     'living for',
     'waking up for',
   ];
-  const SWAP_MS = 280;      // must match the CSS transition duration
-  const HOLD_MS = 950;      // how long each variant stays readable
-
+  const SWAP_MS = 280;
+  const HOLD_MS = 950;
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if (reduceMotion) return; // keep the static default phrase
 
-  let i = 0;
-  const swap = () => {
-    if (i >= phrases.length) return; // landed on final phrase — stop
-    el.classList.add('swap-out');
-    setTimeout(() => {
-      el.textContent = phrases[i];
-      el.classList.remove('swap-out');
-      i++;
-      setTimeout(swap, HOLD_MS);
-    }, SWAP_MS);
+  // Fallback phrase shown immediately — before JS rotates anything.
+  // The server-rendered default already says "waking up for"; if rotation
+  // hasn't started (slow load / interrupted JS), "waking up for" remains
+  // visible. We inject the user-requested "you" as the first rotation
+  // phrase and keep rotation viewport-gated.
+  const heroSection = document.querySelector('.hero-section') || document.getElementById('heroSection') || document.getElementById('hero');
+  let started = false;
+  let observer = null;
+
+  const startRotation = () => {
+    if (started) return;
+    started = true;
+    if (observer) observer.disconnect();
+    runRotation();
   };
-  // Give the page paint a beat before starting the cycle
-  setTimeout(swap, 600);
+
+  const runRotation = () => {
+    if (reduceMotion) { el.textContent = phrases[phrases.length - 1]; return; }
+    let i = 0; // start at 'you' so fallback phrase is shown first
+    el.textContent = phrases[i]; // show 'you' immediately
+    i++;
+    const swap = () => {
+      if (i >= phrases.length) return;
+      el.classList.add('swap-out');
+      setTimeout(() => {
+        el.textContent = phrases[i];
+        el.classList.remove('swap-out');
+        i++;
+        setTimeout(swap, HOLD_MS);
+      }, SWAP_MS);
+    };
+    setTimeout(swap, 950);
+  };
+
+  if (!heroSection) {
+    // No hero section — just show the final landing phrase and exit
+    el.textContent = phrases[phrases.length - 1];
+    return;
+  }
+
+  // Viewport watcher: only animate when user is on the hero section.
+  observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) startRotation();
+    }
+  }, { threshold: 0.15 });
+  observer.observe(heroSection);
+
+  // Defensive: if observer hasn't triggered within 2.5s (e.g. hero at very
+  // top and already intersected before observer registered), start anyway.
+  setTimeout(() => { if (!started) startRotation(); }, 2500);
 }
 
 async function init() {

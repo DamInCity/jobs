@@ -174,7 +174,7 @@ router.get('/', optionalAuth, searchValidation.jobs, asyncHandler(async (req, re
         j.location, j.county, j.country_code, j.job_type,
         j.salary_min, j.salary_max, j.salary_currency, j.salary_period,
         j.posted_date, j.expiry_date, j.view_count, j.is_featured,
-        j.source, j.source_type, j.verification_status, j.is_aggregated,
+        j.source, j.source_type, j.verification_status, j.is_aggregated, j.application_url, j.cv_url,
         c.name as category_name, c.slug as category_slug,
         CASE 
           WHEN j.expiry_date <= CURRENT_TIMESTAMP + INTERVAL '3 days' THEN true 
