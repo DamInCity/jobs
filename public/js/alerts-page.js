@@ -52,7 +52,7 @@ async function loadAlerts() {
     const alerts = res.data || [];
 
     if (alerts.length === 0) {
-      list.innerHTML = '<p class="text-muted">No alerts yet. Create one on the left.</p>';
+      list.innerHTML = '<p class="text-muted">No alerts yet. Use the form above to create your first alert.</p>';
       return;
     }
 
