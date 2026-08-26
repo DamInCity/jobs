@@ -93,7 +93,7 @@
               Fresh roles added every day
             </div>
 
-            <h1 class="hero-title">Find work worth <em>waking up for</em></h1>
+            <h1 class="hero-title">Find work worth <em><span class="hero-rotator" id="heroRotator" aria-hidden="true">waking up for</span></em><span class="sr-only">waking up for</span></h1>
             <p class="hero-subtitle">
               Curated opportunities from real companies — skip the noise, discover roles that actually fit.
             </p>
@@ -266,107 +266,119 @@
               </div>
             </div>
 
-            <div class="filter-group">
-              <h4 class="filter-title">
-                <i class="fas fa-th-large"></i>
-                Categories
-              </h4>
-              <div class="filter-options" id="categoryFilters"></div>
-            </div>
+            <div class="filters-body">
+              <div class="filter-group">
+                <h4 class="filter-title">
+                  <i class="fas fa-th-large"></i>
+                  Categories
+                </h4>
+                <div class="filter-scroll-wrap">
+                  <div
+                    class="filter-options filter-options-scroll"
+                    id="categoryFilters"
+                    tabindex="0"
+                    role="group"
+                    aria-label="Categories"
+                  ></div>
+                </div>
+              </div>
 
-            <div class="filter-group">
-              <h4 class="filter-title">
-                <i class="fas fa-briefcase"></i>
-                Work style
-              </h4>
-              <div class="filter-options">
-                <label class="filter-checkbox">
-                  <input type="checkbox" name="job_type" value="remote">
-                  <span class="checkmark"></span>
-                  Remote
-                </label>
-                <label class="filter-checkbox">
-                  <input type="checkbox" name="job_type" value="hybrid">
-                  <span class="checkmark"></span>
-                  Hybrid
-                </label>
-                <label class="filter-checkbox">
-                  <input type="checkbox" name="job_type" value="onsite">
-                  <span class="checkmark"></span>
-                  On-site
-                </label>
+              <div class="filter-group">
+                <h4 class="filter-title">
+                  <i class="fas fa-briefcase"></i>
+                  Work style
+                </h4>
+                <div class="filter-options">
+                  <label class="filter-checkbox">
+                    <input type="checkbox" name="job_type" value="remote">
+                    <span class="checkmark"></span>
+                    Remote
+                  </label>
+                  <label class="filter-checkbox">
+                    <input type="checkbox" name="job_type" value="hybrid">
+                    <span class="checkmark"></span>
+                    Hybrid
+                  </label>
+                  <label class="filter-checkbox">
+                    <input type="checkbox" name="job_type" value="onsite">
+                    <span class="checkmark"></span>
+                    On-site
+                  </label>
+                </div>
+              </div>
+
+              <div class="filter-group">
+                <h4 class="filter-title">
+                  <i class="fas fa-flag"></i>
+                  Kenya local
+                </h4>
+                <div class="filter-options">
+                  <label class="filter-checkbox">
+                    <input type="checkbox" id="kenyaOnlyFilter" name="kenya_only" value="1">
+                    <span class="checkmark"></span>
+                    Kenya jobs only
+                  </label>
+                  <label class="filter-label" for="countyFilter">County</label>
+                  <select id="countyFilter" class="filter-select" aria-label="County">
+                    <option value="">All counties</option>
+                  </select>
+                  <label class="filter-label" for="sourceTypeFilter">Source</label>
+                  <select id="sourceTypeFilter" class="filter-select" aria-label="Source type">
+                    <option value="">All sources</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="filter-group">
+                <h4 class="filter-title">
+                  <i class="fas fa-calendar"></i>
+                  Posted
+                </h4>
+                <div class="filter-options">
+                  <label class="filter-radio">
+                    <input type="radio" name="posted_after" value="" checked>
+                    <span class="radiomark"></span>
+                    Any time
+                  </label>
+                  <label class="filter-radio">
+                    <input type="radio" name="posted_after" value="today">
+                    <span class="radiomark"></span>
+                    Today
+                  </label>
+                  <label class="filter-radio">
+                    <input type="radio" name="posted_after" value="3days">
+                    <span class="radiomark"></span>
+                    Last 3 days
+                  </label>
+                  <label class="filter-radio">
+                    <input type="radio" name="posted_after" value="week">
+                    <span class="radiomark"></span>
+                    Last week
+                  </label>
+                  <label class="filter-radio">
+                    <input type="radio" name="posted_after" value="month">
+                    <span class="radiomark"></span>
+                    Last month
+                  </label>
+                </div>
+              </div>
+
+              <div class="filter-group">
+                <h4 class="filter-title">
+                  <i class="fas fa-coins"></i>
+                  Salary range
+                </h4>
+                <div class="salary-inputs">
+                  <input type="number" id="salaryMin" placeholder="Min" class="salary-input" inputmode="numeric">
+                  <span style="color:var(--muted)">–</span>
+                  <input type="number" id="salaryMax" placeholder="Max" class="salary-input" inputmode="numeric">
+                </div>
               </div>
             </div>
 
-            <div class="filter-group">
-              <h4 class="filter-title">
-                <i class="fas fa-flag"></i>
-                Kenya local
-              </h4>
-              <div class="filter-options">
-                <label class="filter-checkbox">
-                  <input type="checkbox" id="kenyaOnlyFilter" name="kenya_only" value="1">
-                  <span class="checkmark"></span>
-                  Kenya jobs only
-                </label>
-                <label class="filter-label" for="countyFilter">County</label>
-                <select id="countyFilter" class="filter-select" aria-label="County">
-                  <option value="">All counties</option>
-                </select>
-                <label class="filter-label" for="sourceTypeFilter">Source</label>
-                <select id="sourceTypeFilter" class="filter-select" aria-label="Source type">
-                  <option value="">All sources</option>
-                </select>
-              </div>
+            <div class="filters-footer">
+              <button class="btn btn-primary btn-block" id="applyFilters" type="button">Show matches</button>
             </div>
-
-            <div class="filter-group">
-              <h4 class="filter-title">
-                <i class="fas fa-calendar"></i>
-                Posted
-              </h4>
-              <div class="filter-options">
-                <label class="filter-radio">
-                  <input type="radio" name="posted_after" value="" checked>
-                  <span class="radiomark"></span>
-                  Any time
-                </label>
-                <label class="filter-radio">
-                  <input type="radio" name="posted_after" value="today">
-                  <span class="radiomark"></span>
-                  Today
-                </label>
-                <label class="filter-radio">
-                  <input type="radio" name="posted_after" value="3days">
-                  <span class="radiomark"></span>
-                  Last 3 days
-                </label>
-                <label class="filter-radio">
-                  <input type="radio" name="posted_after" value="week">
-                  <span class="radiomark"></span>
-                  Last week
-                </label>
-                <label class="filter-radio">
-                  <input type="radio" name="posted_after" value="month">
-                  <span class="radiomark"></span>
-                  Last month
-                </label>
-              </div>
-            </div>
-
-            <div class="filter-group">
-              <h4 class="filter-title">
-                <i class="fas fa-coins"></i>
-                Salary range
-              </h4>
-              <div class="salary-inputs">
-                <input type="number" id="salaryMin" placeholder="Min" class="salary-input" inputmode="numeric">
-                <span style="color:var(--muted)">–</span>
-                <input type="number" id="salaryMax" placeholder="Max" class="salary-input" inputmode="numeric">
-              </div>
-            </div>
-
-            <button class="btn btn-primary btn-block" id="applyFilters" type="button">Show matches</button>
           </aside>
 
           <div class="filters-backdrop" id="filtersBackdrop"></div>

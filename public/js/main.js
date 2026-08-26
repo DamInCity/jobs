@@ -1416,9 +1416,51 @@ function registerPwa() {
   });
 }
 
+// ============================================
+// HERO PHRASE ROTATOR
+// ============================================
+
+/**
+ * Cycle the highlighted hero phrase through variants, then land on the
+ * final phrase. Runs once per page load; no-ops if the element is absent.
+ */
+function initHeroRotator() {
+  const el = document.getElementById('heroRotator');
+  if (!el) return;
+
+  // Last entry is the landing phrase — the sequence always ends on it.
+  const phrases = [
+    'grinding for',
+    'diving into',
+    'showing up for',
+    'living for',
+    'waking up for',
+  ];
+  const SWAP_MS = 280;      // must match the CSS transition duration
+  const HOLD_MS = 950;      // how long each variant stays readable
+
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) return; // keep the static default phrase
+
+  let i = 0;
+  const swap = () => {
+    if (i >= phrases.length) return; // landed on final phrase — stop
+    el.classList.add('swap-out');
+    setTimeout(() => {
+      el.textContent = phrases[i];
+      el.classList.remove('swap-out');
+      i++;
+      setTimeout(swap, HOLD_MS);
+    }, SWAP_MS);
+  };
+  // Give the page paint a beat before starting the cycle
+  setTimeout(swap, 600);
+}
+
 async function init() {
   injectHomeFooter();
   registerPwa();
+  initHeroRotator();
   initEventListeners();
   loadFromURL();
   await checkAuth();
