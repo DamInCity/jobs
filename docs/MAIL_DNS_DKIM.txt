@@ -1,0 +1,9 @@
+# Final DKIM record for Cloudflare — add to usseo.one
+
+Type: TXT
+Name: mail._domainkey
+TTL: Auto
+
+Content (paste exactly this one line, without the surrounding quotes):
+
+v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0wSKIgXEbUIjydkFpg8Pf2ygzebXae7ht7hLGtEJXwaBOJICvtKdzVA71c1G80p/ehYjARn0hcJou8mkFvUdjuoZCtQOXh3y+gT8ibKYf+Hj/1bkk11h1zCON3pV5/9ptgSgFj9uciLPS/vzB50ISAGtRsfv0diXBZapmV6W7AJ/PHvaLcSdY+KKIwUAy6jIvvG1AfqFb+27wiWF+/LLT8T4qBGW3W6Wo14Ij5DCGw1zoEDrPXppuqjfkRP3fHfVAvbZYBUkeJqGT9U53DeEIJWROE54swGLG1FMXLessFaxeiD9hhVxGNNtmtxs0y3NOXhenCckG/sRxTdIA9fchQIDAQAB

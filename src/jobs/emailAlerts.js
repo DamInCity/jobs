@@ -224,6 +224,9 @@ function createMailTransporter() {
       user: config.email.user,
       pass: config.email.password,
     },
+    // Local relay uses a self-signed cert until LE issuance; real mail
+    // servers on the public internet are unaffected by this knob.
+    tls: { rejectUnauthorized: process.env.SMTP_ALLOW_SELF_SIGNED === '1' ? false : true },
   });
 }
 
