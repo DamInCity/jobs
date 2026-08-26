@@ -128,19 +128,30 @@ See:
 | `docs/n8n/job-google-ingest.workflow.json` | Cron every 6h → query planner (KE titles×locations) → discovery → `POST /api/ingest/jobs` |
 | `docs/n8n/supply-watchdog.workflow.json` | Cron every 3h → `GET /api/health/supply` → alert if gates fail |
 
+### Hosted n8n on this server
+
+```bash
+docker compose up -d n8n
+./scripts/import-n8n-workflows.sh
+```
+
+Compose injects `JOBSHUB_URL=https://jobs.usseo.one` and `JOBSHUB_INGEST_KEY` (= `INGEST_API_KEY`).  
+UI: `http://127.0.0.1:5678` (SSH tunnel). Auth: `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD` in `.env`.  
+After import: open each workflow → **Activate**, replace discovery placeholders, wire Telegram on supply fail.
+
 ### Supply watchdog
 
-1. Import `supply-watchdog.workflow.json`
-2. Set n8n env `JOBSHUB_URL=https://jobs.usseo.one` (or local)
+1. Import `supply-watchdog.workflow.json` (or `./scripts/import-n8n-workflows.sh`)
+2. `JOBSHUB_URL` is set on the n8n container
 3. Wire TRUE branch of **IF supply failed** to Telegram/Slack/email
-4. Optional: on fail, trigger your scrape runner or model agent
+4. Optional: set `SUPPLY_ALERT_CHAT_ID` in JobsHub `.env` for Docker heartbeat Telegram alerts
 
-JobsHub also runs `jobs_supply_heartbeat` in Docker/PM2 (expire + recount + alert) so the platform self-heals inventory without n8n — n8n is the external monitor/fan-out layer.
+JobsHub also runs `jobs_supply_heartbeat` in Docker (expire + recount + alert) so the platform self-heals inventory without n8n — n8n is the external monitor/fan-out layer.
 
 ### Ingest workflow
 
-1. Import into n8n  
-2. Set env `JOBSHUB_INGEST_KEY` = your `INGEST_API_KEY` (or hardcode header carefully)  
+1. Import into n8n (script above)  
+2. `JOBSHUB_INGEST_KEY` is set on the n8n container  
 3. Replace the **Placeholder map** node with real discovery:
    - SerpAPI / DataForSEO / ValueSERP **Google Jobs** using `searchQuery`, **or**
    - HTTP Request to a public board list page + HTML extract  

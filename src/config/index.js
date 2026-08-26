@@ -1,5 +1,31 @@
 require('dotenv').config();
 
+const DEFAULT_PUBLIC_URL = 'https://jobs.usseo.one';
+
+/**
+ * Resolve the public site origin used in emails/Telegram/share links.
+ * Never emit localhost/127.0.0.1 when NODE_ENV=production.
+ */
+function resolvePublicUrl(raw, fallback = DEFAULT_PUBLIC_URL) {
+  const value = String(raw || '').trim().replace(/\/+$/, '');
+  if (!value) return fallback;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(value)) {
+    if ((process.env.NODE_ENV || 'development') === 'production') {
+      return fallback;
+    }
+  }
+  return value;
+}
+
+const publicUrl = resolvePublicUrl(
+  process.env.APP_URL || process.env.FRONTEND_URL,
+  DEFAULT_PUBLIC_URL
+);
+const frontendUrl = resolvePublicUrl(
+  process.env.FRONTEND_URL || process.env.APP_URL,
+  publicUrl
+);
+
 const config = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 3000,
@@ -27,8 +53,8 @@ const config = {
   
   app: {
     name: process.env.APP_NAME || 'JobsHub',
-    url: process.env.APP_URL || 'http://localhost:3000',
-    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+    url: publicUrl,
+    frontendUrl,
   },
   
   email: {

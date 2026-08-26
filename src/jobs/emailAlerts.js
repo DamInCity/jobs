@@ -288,9 +288,20 @@ async function notifyN8n(payload) {
   }
 }
 
+function publicOrigin() {
+  // Prefer frontend URL; both are sanitized in config for production
+  return String(config.app.frontendUrl || config.app.url || 'https://jobs.usseo.one').replace(/\/+$/, '');
+}
+
 function jobUrl(job) {
-  if (job.slug) return `${config.app.url}/jobs/${job.slug}`;
-  return job.external_link || config.app.url;
+  const origin = publicOrigin();
+  if (job.slug) return `${origin}/jobs/${job.slug}`;
+  const link = job.external_link || origin;
+  // Guard: never leak localhost apply/detail links in digests
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(link) && job.slug) {
+    return `${origin}/jobs/${job.slug}`;
+  }
+  return link;
 }
 
 function buildJobHtml(job) {

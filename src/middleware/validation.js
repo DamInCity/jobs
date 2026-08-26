@@ -14,6 +14,112 @@ const validate = (req, res, next) => {
   next();
 };
 
+const SOURCE_TYPES = [
+  'DIRECT', 'COMPANY_CAREER', 'RECRUITMENT_AGENCY', 'GOVERNMENT',
+  'NGO', 'BOARD', 'API', 'PARTNER', 'USER_SUBMITTED',
+];
+
+const jobExtraFieldRules = [
+  body('county')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 100 }).withMessage('County must not exceed 100 characters'),
+  body('country_code')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 2, max: 2 }).withMessage('country_code must be 2 letters'),
+  body('source')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 100 }).withMessage('Source must not exceed 100 characters'),
+  body('source_type')
+    .optional({ values: 'falsy' })
+    .isIn(SOURCE_TYPES).withMessage(`source_type must be one of: ${SOURCE_TYPES.join(', ')}`),
+  body('source_url')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isURL().withMessage('source_url must be a valid URL'),
+  body('application_url')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isURL().withMessage('application_url must be a valid URL'),
+  body('verification_status')
+    .optional({ values: 'falsy' })
+    .isIn(['verified', 'aggregated', 'expired', 'rejected'])
+    .withMessage('verification_status must be verified, aggregated, expired, or rejected'),
+  body('is_aggregated')
+    .optional()
+    .isBoolean().withMessage('is_aggregated must be a boolean'),
+  body('deadline')
+    .optional({ values: 'falsy' })
+    .isISO8601().withMessage('deadline must be a valid date'),
+  body('job_source_id')
+    .optional({ values: 'falsy' })
+    .isUUID().withMessage('job_source_id must be a valid UUID'),
+  body('featured_until')
+    .optional({ values: 'falsy' })
+    .isISO8601().withMessage('featured_until must be a valid date'),
+  body('posted_date')
+    .optional({ values: 'falsy' })
+    .isISO8601().withMessage('posted_date must be a valid date'),
+  body('meta_title')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 255 }).withMessage('meta_title must not exceed 255 characters'),
+  body('meta_description')
+    .optional({ values: 'null' })
+    .trim(),
+];
+
+const adminUserFieldRules = [
+  body('email_verified')
+    .optional()
+    .isBoolean().withMessage('email_verified must be a boolean'),
+  body('avatar_url')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isURL().withMessage('avatar_url must be a valid URL'),
+  body('preferred_locations')
+    .optional()
+    .isArray().withMessage('preferred_locations must be an array'),
+  body('preferred_job_types')
+    .optional()
+    .isArray().withMessage('preferred_job_types must be an array'),
+  body('preferred_categories')
+    .optional()
+    .isArray().withMessage('preferred_categories must be an array'),
+  body('notify_channels')
+    .optional()
+    .isArray().withMessage('notify_channels must be an array'),
+  body('whatsapp_number')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 32 }).withMessage('whatsapp_number must not exceed 32 characters'),
+  body('telegram_username')
+    .optional({ values: 'falsy' })
+    .trim()
+    .customSanitizer((v) => String(v || '').replace(/^@/, ''))
+    .isLength({ min: 5, max: 64 }).withMessage('Telegram username must be 5–64 characters')
+    .matches(/^[A-Za-z0-9_]+$/).withMessage('Telegram username may only contain letters, numbers, and underscores'),
+  body('skills')
+    .optional()
+    .isArray().withMessage('skills must be an array'),
+  body('profile_summary')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 1000 }).withMessage('profile_summary must not exceed 1000 characters'),
+  body('profile_seniority')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 50 }).withMessage('profile_seniority must not exceed 50 characters'),
+  body('profile_keywords')
+    .optional()
+    .isArray().withMessage('profile_keywords must be an array'),
+  body('profile_status')
+    .optional()
+    .isIn(['none', 'pending_confirm', 'confirmed']).withMessage('Invalid profile_status'),
+];
+
 // Job validation rules
 const jobValidation = {
   create: [
@@ -53,6 +159,7 @@ const jobValidation = {
     body('is_featured')
       .optional()
       .isBoolean().withMessage('is_featured must be a boolean'),
+    ...jobExtraFieldRules,
     validate,
   ],
   update: [
@@ -73,11 +180,12 @@ const jobValidation = {
       .trim()
       .isURL().withMessage('External link must be a valid URL'),
     body('category_id')
-      .optional()
+      .optional({ values: 'falsy' })
       .isUUID().withMessage('Category ID must be a valid UUID'),
     body('status')
       .optional()
       .isIn(['active', 'expired', 'draft']).withMessage('Status must be active, expired, or draft'),
+    ...jobExtraFieldRules,
     validate,
   ],
 };
@@ -158,6 +266,73 @@ const userValidation = {
   ],
 };
 
+// Admin user management
+const adminUserValidation = {
+  create: [
+    body('email')
+      .trim()
+      .notEmpty().withMessage('Email is required')
+      .isEmail().withMessage('Must be a valid email address')
+      .normalizeEmail(),
+    body('password')
+      .notEmpty().withMessage('Password is required')
+      .isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+    body('name')
+      .optional({ values: 'falsy' })
+      .trim()
+      .isLength({ min: 2, max: 255 }).withMessage('Name must be between 2 and 255 characters'),
+    body('role')
+      .optional()
+      .isIn(['admin', 'user']).withMessage('Role must be admin or user'),
+    ...adminUserFieldRules,
+    validate,
+  ],
+  update: [
+    param('id').isUUID().withMessage('Invalid user ID'),
+    body('email')
+      .optional()
+      .trim()
+      .isEmail().withMessage('Must be a valid email address')
+      .normalizeEmail(),
+    body('password')
+      .optional({ values: 'falsy' })
+      .isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+    body('name')
+      .optional({ values: 'null' })
+      .trim()
+      .isLength({ min: 2, max: 255 }).withMessage('Name must be between 2 and 255 characters'),
+    body('role')
+      .optional()
+      .isIn(['admin', 'user']).withMessage('Role must be admin or user'),
+    ...adminUserFieldRules,
+    validate,
+  ],
+  idParam: [
+    param('id').isUUID().withMessage('Invalid user ID'),
+    validate,
+  ],
+  alertParam: [
+    param('id').isUUID().withMessage('Invalid user ID'),
+    param('alertId').isUUID().withMessage('Invalid alert ID'),
+    validate,
+  ],
+  alertUpdate: [
+    param('id').isUUID().withMessage('Invalid user ID'),
+    param('alertId').isUUID().withMessage('Invalid alert ID'),
+    body('is_active')
+      .optional()
+      .isBoolean().withMessage('is_active must be a boolean'),
+    body('frequency')
+      .optional()
+      .isIn(['daily', 'weekly']).withMessage('Frequency must be daily or weekly'),
+    body('name')
+      .optional({ values: 'null' })
+      .trim()
+      .isLength({ max: 255 }).withMessage('Name must not exceed 255 characters'),
+    validate,
+  ],
+};
+
 // Category validation rules
 const categoryValidation = {
   create: [
@@ -232,6 +407,8 @@ module.exports = {
   validate,
   jobValidation,
   userValidation,
+  adminUserValidation,
   categoryValidation,
   searchValidation,
+  SOURCE_TYPES,
 };

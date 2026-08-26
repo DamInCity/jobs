@@ -4,14 +4,22 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "hours", "hoursInterval": 3 }]
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
         }
       },
       "id": "cron-watch",
       "name": "Every 3 hours",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
@@ -30,17 +38,23 @@
       "name": "GET /api/health/supply",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [260, 0]
+      "position": [
+        260,
+        0
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first();\nconst status = item.json.statusCode || item.json.status || 0;\nconst body = item.json.body || item.json;\nconst data = body.data || body;\nconst gatesPassed = !!(data && data.gates_passed);\nconst active = data?.active ?? null;\nconst hours = data?.hours_since_ingest ?? null;\nconst cats = data?.categories_with_jobs ?? null;\nconst fail = status >= 400 || status === 0 || !gatesPassed;\nconst message = fail\n  ? `⚠️ JobsHub supply FAIL (HTTP ${status}) active=${active} cats=${cats} hours_since_ingest=${hours} gates=${JSON.stringify(data?.gates || {})}`\n  : `✅ JobsHub supply OK active=${active} cats=${cats} hours_since_ingest=${hours}`;\nreturn [{ json: { fail, status, active, hours, cats, gatesPassed, message, raw: data } }];"
+        "jsCode": "const item = $input.first();\nconst status = item.json.statusCode || item.json.status || 0;\nconst body = item.json.body || item.json;\nconst data = body.data || body;\nconst gatesPassed = !!(data && data.gates_passed);\nconst active = data?.active ?? null;\nconst hours = data?.hours_since_ingest ?? null;\nconst cats = data?.categories_with_jobs ?? null;\nconst fail = status >= 400 || status === 0 || !gatesPassed;\nconst message = fail\n  ? `\u26a0\ufe0f JobsHub supply FAIL (HTTP ${status}) active=${active} cats=${cats} hours_since_ingest=${hours} gates=${JSON.stringify(data?.gates || {})}`\n  : `\u2705 JobsHub supply OK active=${active} cats=${cats} hours_since_ingest=${hours}`;\nreturn [{ json: { fail, status, active, hours, cats, gatesPassed, message, raw: data } }];"
       },
       "id": "eval-gates",
       "name": "Evaluate gates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [520, 0]
+      "position": [
+        520,
+        0
+      ]
     },
     {
       "parameters": {
@@ -57,11 +71,14 @@
       "name": "IF supply failed",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [760, 0]
+      "position": [
+        760,
+        0
+      ]
     },
     {
       "parameters": {
-        "content": "## On failure\nWire TRUE branch to:\n- Telegram / Slack / email\n- Optional: HTTP Request POST to trigger a manual scrape runner if you host one\n- Optional: call your model agent webhook to investigate logs\n\nEnv:\n- JOBSHUB_URL=https://jobs.usseo.one\n\nPair with **JobsHub Google/Board Ingest** workflow for continuous discovery → POST /api/ingest/jobs.",
+        "content": "## On failure\nWire TRUE branch to:\n- Telegram / Slack / email\n- Optional: HTTP Request POST to trigger a manual scrape runner if you host one\n- Optional: call your model agent webhook to investigate logs\n\nEnv:\n- JOBSHUB_URL=https://jobs.usseo.one\n\nPair with **JobsHub Google/Board Ingest** workflow for continuous discovery \u2192 POST /api/ingest/jobs.",
         "height": 280,
         "width": 360
       },
@@ -69,7 +86,10 @@
       "name": "Note: alert channels",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1000, -120]
+      "position": [
+        1000,
+        -120
+      ]
     },
     {
       "parameters": {
@@ -95,22 +115,55 @@
       "name": "Prep alert payload",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1000, 40]
+      "position": [
+        1000,
+        40
+      ]
     }
   ],
   "connections": {
     "Every 3 hours": {
-      "main": [[{ "node": "GET /api/health/supply", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "GET /api/health/supply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "GET /api/health/supply": {
-      "main": [[{ "node": "Evaluate gates", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Evaluate gates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Evaluate gates": {
-      "main": [[{ "node": "IF supply failed", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF supply failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF supply failed": {
       "main": [
-        [{ "node": "Prep alert payload", "type": "main", "index": 0 }],
+        [
+          {
+            "node": "Prep alert payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     }
@@ -120,5 +173,8 @@
   },
   "meta": {
     "templateCredsSetupCompleted": false
-  }
+  },
+  "id": "ad055152-43cb-4e94-867f-b93830af331f",
+  "active": false,
+  "versionId": "f7757fd4-cc82-4e5f-9bdb-78e071f8c913"
 }

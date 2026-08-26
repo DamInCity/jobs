@@ -10,8 +10,32 @@ const state = {
   user: null,
   currentPage: 'dashboard',
   jobsPage: 1,
+  usersPage: 1,
   categories: [],
   selectedJobs: new Set(),
+  currentUserAlerts: [],
+};
+
+const KENYA_COUNTIES = [
+  'Baringo', 'Bomet', 'Bungoma', 'Busia', 'Elgeyo-Marakwet', 'Embu', 'Garissa',
+  'Homa Bay', 'Isiolo', 'Kajiado', 'Kakamega', 'Kericho', 'Kiambu', 'Kilifi',
+  'Kirinyaga', 'Kisii', 'Kisumu', 'Kitui', 'Kwale', 'Laikipia', 'Lamu', 'Machakos',
+  'Makueni', 'Mandera', 'Marsabit', 'Meru', 'Migori', 'Mombasa', "Murang'a",
+  'Nairobi', 'Nakuru', 'Nandi', 'Narok', 'Nyamira', 'Nyandarua', 'Nyeri',
+  'Samburu', 'Siaya', 'Taita-Taveta', 'Tana River', 'Tharaka-Nithi', 'Trans Nzoia',
+  'Turkana', 'Uasin Gishu', 'Vihiga', 'Wajir', 'West Pokot',
+];
+
+const SOURCE_TYPE_LABELS = {
+  DIRECT: 'Direct',
+  BOARD: 'Board',
+  API: 'API',
+  COMPANY_CAREER: 'Career page',
+  GOVERNMENT: 'Government',
+  NGO: 'NGO',
+  RECRUITMENT_AGENCY: 'Agency',
+  PARTNER: 'Partner',
+  USER_SUBMITTED: 'User',
 };
 
 // ============================================
@@ -214,11 +238,20 @@ async function loadJobs() {
     const search = document.getElementById('jobSearch')?.value || '';
     const status = document.getElementById('statusFilter')?.value || '';
 
+    const category = document.getElementById('jobCategoryFilter')?.value || '';
+    const sourceType = document.getElementById('sourceTypeFilter')?.value || '';
+    const verification = document.getElementById('verificationFilter')?.value || '';
+    const county = document.getElementById('countyFilter')?.value || '';
+
     const params = new URLSearchParams({
       page: state.jobsPage,
       limit: 20,
       ...(search && { search }),
       ...(status && { status }),
+      ...(category && { category }),
+      ...(sourceType && { source_type: sourceType }),
+      ...(verification && { verification_status: verification }),
+      ...(county && { county }),
     });
 
     const response = await api(`/admin/jobs?${params}`);
@@ -251,13 +284,20 @@ async function loadJobs() {
               </div>
             </td>
             <td>${job.category_name || '-'}</td>
-            <td>${escapeHtml(job.location)}</td>
+            <td>
+              ${escapeHtml(job.location || '-')}
+              ${job.county ? `<div class="muted-line">${escapeHtml(job.county)}</div>` : ''}
+            </td>
             <td><span class="job-tag ${job.job_type}">${getJobTypeLabel(job.job_type)}</span></td>
+            <td>
+              <span class="status-badge status-source">${escapeHtml(SOURCE_TYPE_LABELS[job.source_type] || job.source_type || job.source || '-')}</span>
+              ${job.verification_status ? `<span class="status-badge status-verify-${job.verification_status}">${escapeHtml(job.verification_status)}</span>` : ''}
+            </td>
             <td>
               <span class="status-badge status-${job.status}">${job.status}</span>
               ${job.is_featured ? '<span class="status-badge" style="background: #FEF3C7; color: #92400E;">⭐</span>' : ''}
             </td>
-            <td>${job.view_count.toLocaleString()}</td>
+            <td>${(job.view_count || 0).toLocaleString()}</td>
             <td>
               <div class="action-btns">
                 <button class="action-btn" onclick="editJob('${job.id}')" title="Edit">
@@ -270,7 +310,7 @@ async function loadJobs() {
             </td>
           </tr>
         `).join('')
-      : '<tr><td colspan="8" class="loading-cell">No jobs found</td></tr>';
+      : '<tr><td colspan="9" class="loading-cell">No jobs found</td></tr>';
 
     // Render pagination
     renderPagination('jobsPagination', pagination, (page) => {
@@ -288,17 +328,32 @@ async function loadJobs() {
 }
 
 async function loadCategoriesForForm() {
-  if (state.categories.length > 0) return;
+  if (state.categories.length === 0) {
+    try {
+      const response = await api('/admin/categories');
+      state.categories = response.data || [];
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      return;
+    }
+  }
 
-  try {
-    const response = await api('/admin/categories');
-    state.categories = response.data;
+  const options = state.categories.map(cat => `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`).join('');
+  const jobCategory = document.getElementById('jobCategory');
+  if (jobCategory) {
+    const current = jobCategory.value;
+    jobCategory.innerHTML = '<option value="">Select Category</option>' + options;
+    if (current) jobCategory.value = current;
+  }
 
-    const select = document.getElementById('jobCategory');
-    select.innerHTML = '<option value="">Select Category</option>' +
-      state.categories.map(cat => `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`).join('');
-  } catch (error) {
-    console.error('Failed to load categories:', error);
+  const jobCategoryFilter = document.getElementById('jobCategoryFilter');
+  if (jobCategoryFilter && jobCategoryFilter.options.length <= 1) {
+    jobCategoryFilter.innerHTML = '<option value="">All Categories</option>' + options;
+  }
+
+  const userCats = document.getElementById('userPreferredCategories');
+  if (userCats && userCats.options.length === 0) {
+    userCats.innerHTML = options;
   }
 }
 
@@ -327,16 +382,43 @@ function openJobModal(job = null) {
     document.getElementById('salaryCurrency').value = job.salary_currency || 'KES';
     document.getElementById('salaryPeriod').value = job.salary_period || 'monthly';
     document.getElementById('externalLink').value = job.external_link;
-    document.getElementById('expiryDate').value = job.expiry_date ? job.expiry_date.split('T')[0] : '';
+    document.getElementById('applicationUrl').value = job.application_url || '';
+    document.getElementById('sourceUrl').value = job.source_url || '';
+    document.getElementById('expiryDate').value = dateInputValue(job.expiry_date);
+    document.getElementById('postedDate').value = dateInputValue(job.posted_date);
+    document.getElementById('jobDeadline').value = dateInputValue(job.deadline);
+    document.getElementById('featuredUntil').value = dateInputValue(job.featured_until);
     document.getElementById('jobStatus').value = job.status;
     document.getElementById('isFeatured').checked = job.is_featured;
+    const countySelect = document.getElementById('jobCounty');
+    if (job.county && ![...countySelect.options].some((o) => o.value === job.county)) {
+      countySelect.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(job.county)}">${escapeHtml(job.county)}</option>`);
+    }
+    countySelect.value = job.county || '';
+    document.getElementById('jobCountryCode').value = job.country_code || 'KE';
+    document.getElementById('jobSource').value = job.source || '';
+    document.getElementById('jobSourceType').value = job.source_type || 'DIRECT';
+    document.getElementById('jobVerification').value = job.verification_status || 'verified';
+    document.getElementById('jobSourceId').value = job.job_source_id || '';
+    document.getElementById('isAggregated').checked = job.is_aggregated;
+    document.getElementById('metaTitle').value = job.meta_title || '';
+    document.getElementById('metaDescription').value = job.meta_description || '';
+    const meta = document.getElementById('jobReadonlyMeta');
+    meta.classList.remove('hidden');
+    meta.textContent = `ID ${job.id} · slug ${job.slug || '—'} · ${job.view_count || 0} views · ${job.click_count || 0} clicks`;
   } else {
     title.textContent = 'Add New Job';
     document.getElementById('jobId').value = '';
-    // Set default expiry date to 30 days from now
     const defaultExpiry = new Date();
     defaultExpiry.setDate(defaultExpiry.getDate() + 30);
     document.getElementById('expiryDate').value = defaultExpiry.toISOString().split('T')[0];
+    document.getElementById('postedDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('jobCountryCode').value = 'KE';
+    document.getElementById('jobSource').value = 'manual';
+    document.getElementById('jobSourceType').value = 'DIRECT';
+    document.getElementById('jobVerification').value = 'verified';
+    document.getElementById('isAggregated').checked = false;
+    document.getElementById('jobReadonlyMeta').classList.add('hidden');
   }
 
   modal.classList.add('show');
@@ -368,9 +450,23 @@ async function saveJob(e) {
     salary_currency: document.getElementById('salaryCurrency').value,
     salary_period: document.getElementById('salaryPeriod').value,
     external_link: document.getElementById('externalLink').value,
+    application_url: document.getElementById('applicationUrl').value || null,
+    source_url: document.getElementById('sourceUrl').value || null,
     expiry_date: document.getElementById('expiryDate').value || null,
+    posted_date: document.getElementById('postedDate').value || null,
+    deadline: document.getElementById('jobDeadline').value || null,
+    featured_until: document.getElementById('featuredUntil').value || null,
     status: document.getElementById('jobStatus').value,
     is_featured: document.getElementById('isFeatured').checked,
+    county: document.getElementById('jobCounty').value || null,
+    country_code: (document.getElementById('jobCountryCode').value || 'KE').toUpperCase(),
+    source: document.getElementById('jobSource').value || 'manual',
+    source_type: document.getElementById('jobSourceType').value || 'DIRECT',
+    verification_status: document.getElementById('jobVerification').value || 'verified',
+    job_source_id: document.getElementById('jobSourceId').value || null,
+    is_aggregated: document.getElementById('isAggregated').checked,
+    meta_title: document.getElementById('metaTitle').value || null,
+    meta_description: document.getElementById('metaDescription').value || null,
   };
 
   try {
@@ -579,26 +675,312 @@ async function deleteCategory(id) {
 
 async function loadUsers() {
   try {
-    const response = await api('/admin/users');
-    const { users } = response.data;
+    await loadCategoriesForForm();
+
+    const q = document.getElementById('userSearch')?.value || '';
+    const role = document.getElementById('userRoleFilter')?.value || '';
+    const profileStatus = document.getElementById('userProfileFilter')?.value || '';
+    const telegram = document.getElementById('userTelegramFilter')?.value || '';
+    const hasCv = document.getElementById('userCvFilter')?.value || '';
+
+    const params = new URLSearchParams({
+      page: state.usersPage,
+      limit: 20,
+      ...(q && { q }),
+      ...(role && { role }),
+      ...(profileStatus && { profile_status: profileStatus }),
+      ...(telegram && { telegram }),
+      ...(hasCv && { has_cv: hasCv }),
+    });
+
+    const response = await api(`/admin/users?${params}`);
+    const { users, pagination } = response.data;
 
     const tbody = document.getElementById('usersTableBody');
     tbody.innerHTML = users.length
       ? users.map(user => `
-          <tr>
-            <td>${escapeHtml(user.name || 'No name')}</td>
+          <tr data-id="${user.id}">
+            <td>
+              <div class="job-table-text">
+                <h4>${escapeHtml(user.name || 'No name')}</h4>
+                <span class="status-badge status-role-${user.role}">${user.role}</span>
+              </div>
+            </td>
             <td>${escapeHtml(user.email)}</td>
-            <td>${user.saved_jobs_count}</td>
-            <td>${user.alerts_count}</td>
+            <td><span class="status-badge status-profile-${user.profile_status || 'none'}">${formatProfileStatus(user.profile_status)}</span></td>
+            <td>
+              ${user.telegram_linked
+                ? `<span class="status-badge status-active">Linked</span>`
+                : `<span class="status-badge status-draft">—</span>`}
+              ${user.telegram_username ? `<div class="muted-line">@${escapeHtml(user.telegram_username)}</div>` : ''}
+            </td>
+            <td>${user.has_cv ? escapeHtml(user.cv_original_name || 'Yes') : '—'}</td>
+            <td>${user.saved_jobs_count || 0}</td>
+            <td>${user.alerts_count || 0}</td>
             <td>${formatDate(user.created_at)}</td>
-            <td>${user.last_login ? formatDate(user.last_login) : 'Never'}</td>
+            <td>
+              <div class="action-btns">
+                <button class="action-btn" onclick="editUser('${user.id}')" title="Edit">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn delete" onclick="deleteUser('${user.id}')" title="Delete">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
           </tr>
         `).join('')
-      : '<tr><td colspan="6" class="loading-cell">No users found</td></tr>';
+      : '<tr><td colspan="9" class="loading-cell">No users found</td></tr>';
 
+    renderPagination('usersPagination', pagination, (page) => {
+      state.usersPage = page;
+      loadUsers();
+    });
   } catch (error) {
     console.error('Failed to load users:', error);
     showNotification('Failed to load users', 'error');
+  }
+}
+
+function openUserModal(user = null) {
+  const modal = document.getElementById('userModal');
+  const form = document.getElementById('userForm');
+  const title = document.getElementById('userModalTitle');
+  form.reset();
+  state.currentUserAlerts = [];
+
+  document.querySelectorAll('input[name="notifyChannel"]').forEach((el) => {
+    el.checked = el.value === 'email';
+  });
+  document.querySelectorAll('input[name="prefJobType"]').forEach((el) => {
+    el.checked = false;
+  });
+  const catSelect = document.getElementById('userPreferredCategories');
+  [...catSelect.options].forEach((opt) => { opt.selected = false; });
+
+  if (user) {
+    title.textContent = 'Edit User';
+    document.getElementById('userId').value = user.id;
+    document.getElementById('userName').value = user.name || '';
+    document.getElementById('userEmail').value = user.email || '';
+    document.getElementById('userRole').value = user.role || 'user';
+    document.getElementById('userPassword').required = false;
+    document.getElementById('userPasswordHint').textContent = '(leave blank to keep)';
+    document.getElementById('userAvatar').value = user.avatar_url || '';
+    document.getElementById('userEmailVerified').checked = !!user.email_verified;
+    document.getElementById('userTelegramUsername').value = user.telegram_username || '';
+    document.getElementById('userWhatsapp').value = user.whatsapp_number || '';
+    document.getElementById('userPreferredLocations').value = asList(user.preferred_locations).join(', ');
+    document.getElementById('userSkills').value = asList(user.skills).join(', ');
+    document.getElementById('userKeywords').value = asList(user.profile_keywords).join(', ');
+    document.getElementById('userProfileSummary').value = user.profile_summary || '';
+    document.getElementById('userSeniority').value = user.profile_seniority || '';
+    document.getElementById('userProfileStatus').value = user.profile_status || 'none';
+
+    const channels = asList(user.notify_channels);
+    document.querySelectorAll('input[name="notifyChannel"]').forEach((el) => {
+      el.checked = channels.includes(el.value);
+    });
+    const types = asList(user.preferred_job_types);
+    document.querySelectorAll('input[name="prefJobType"]').forEach((el) => {
+      el.checked = types.includes(el.value);
+    });
+    const prefCats = asList(user.preferred_categories);
+    [...catSelect.options].forEach((opt) => {
+      opt.selected = prefCats.includes(opt.value);
+    });
+
+    const tgRow = document.getElementById('userTelegramRow');
+    if (user.telegram_linked || user.telegram_chat_id) {
+      tgRow.classList.remove('hidden');
+      document.getElementById('userTelegramChat').textContent = `Chat ID: ${user.telegram_chat_id || 'linked'}`;
+    } else {
+      tgRow.classList.add('hidden');
+    }
+
+    document.getElementById('userCvMeta').textContent = user.has_cv
+      ? `${user.cv_original_name || 'CV uploaded'} · ${user.cv_uploaded_at ? formatDate(user.cv_uploaded_at) : ''}`
+      : 'No CV';
+
+    const meta = document.getElementById('userReadonlyMeta');
+    meta.classList.remove('hidden');
+    meta.textContent = `Joined ${formatDate(user.created_at)} · last login ${user.last_login ? formatDate(user.last_login) : 'never'} · profiled ${user.profiled_at ? formatDate(user.profiled_at) : '—'}`;
+
+    renderUserAlerts(user.alerts || []);
+  } else {
+    title.textContent = 'Add User';
+    document.getElementById('userId').value = '';
+    document.getElementById('userPassword').required = true;
+    document.getElementById('userPasswordHint').textContent = '(required)';
+    document.getElementById('userTelegramRow').classList.add('hidden');
+    document.getElementById('userCvMeta').textContent = 'No CV';
+    document.getElementById('userReadonlyMeta').classList.add('hidden');
+    document.getElementById('userAlertsSection').classList.add('hidden');
+    document.getElementById('userAlertsList').innerHTML = '';
+  }
+
+  modal.classList.add('show');
+}
+
+function closeUserModal() {
+  document.getElementById('userModal').classList.remove('show');
+}
+
+function renderUserAlerts(alerts) {
+  state.currentUserAlerts = alerts || [];
+  const section = document.getElementById('userAlertsSection');
+  const list = document.getElementById('userAlertsList');
+  if (!alerts || alerts.length === 0) {
+    section.classList.remove('hidden');
+    list.innerHTML = '<p class="muted-line">No alerts</p>';
+    return;
+  }
+  section.classList.remove('hidden');
+  list.innerHTML = alerts.map((alert) => {
+    const criteria = summarizeCriteria(alert.search_criteria);
+    return `
+      <div class="alert-admin-row" data-alert-id="${alert.id}">
+        <div>
+          <strong>${escapeHtml(alert.name || 'Untitled alert')}</strong>
+          <div class="muted-line">${escapeHtml(criteria)} · ${alert.frequency} · last sent ${alert.last_sent_at ? formatDate(alert.last_sent_at) : 'never'}</div>
+        </div>
+        <div class="action-btns">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="toggleUserAlert('${alert.id}', ${alert.is_active ? 'false' : 'true'})">
+            ${alert.is_active ? 'Disable' : 'Enable'}
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" style="color: var(--error);" onclick="deleteUserAlert('${alert.id}')">
+            Delete
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function collectUserFormData() {
+  const notify = [...document.querySelectorAll('input[name="notifyChannel"]:checked')].map((el) => el.value);
+  const jobTypes = [...document.querySelectorAll('input[name="prefJobType"]:checked')].map((el) => el.value);
+  const categories = [...document.getElementById('userPreferredCategories').selectedOptions].map((opt) => opt.value);
+  const password = document.getElementById('userPassword').value;
+
+  const data = {
+    name: document.getElementById('userName').value || null,
+    email: document.getElementById('userEmail').value,
+    role: document.getElementById('userRole').value,
+    avatar_url: document.getElementById('userAvatar').value || null,
+    email_verified: document.getElementById('userEmailVerified').checked,
+    notify_channels: notify.length ? notify : ['email'],
+    telegram_username: document.getElementById('userTelegramUsername').value || null,
+    whatsapp_number: document.getElementById('userWhatsapp').value || null,
+    preferred_locations: splitCsv(document.getElementById('userPreferredLocations').value),
+    preferred_job_types: jobTypes,
+    preferred_categories: categories,
+    skills: splitCsv(document.getElementById('userSkills').value),
+    profile_keywords: splitCsv(document.getElementById('userKeywords').value),
+    profile_summary: document.getElementById('userProfileSummary').value || null,
+    profile_seniority: document.getElementById('userSeniority').value || null,
+    profile_status: document.getElementById('userProfileStatus').value,
+  };
+  if (password) data.password = password;
+  return data;
+}
+
+async function saveUser(e) {
+  e.preventDefault();
+  const userId = document.getElementById('userId').value;
+  const isEdit = !!userId;
+  const userData = collectUserFormData();
+
+  if (!isEdit && !userData.password) {
+    showNotification('Password is required for new users', 'error');
+    return;
+  }
+
+  try {
+    if (isEdit) {
+      await api(`/admin/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(userData),
+      });
+      showNotification('User updated successfully', 'success');
+    } else {
+      await api('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      });
+      showNotification('User created successfully', 'success');
+    }
+    closeUserModal();
+    loadUsers();
+  } catch (error) {
+    showNotification(error.message || 'Failed to save user', 'error');
+  }
+}
+
+async function editUser(id) {
+  try {
+    await loadCategoriesForForm();
+    const response = await api(`/admin/users/${id}`);
+    openUserModal(response.data);
+  } catch (error) {
+    showNotification('Failed to load user details', 'error');
+  }
+}
+
+async function deleteUser(id) {
+  if (state.user && state.user.id === id) {
+    showNotification('You cannot delete your own account', 'error');
+    return;
+  }
+  if (!confirm('Delete this user? Saved jobs and alerts will be removed.')) return;
+
+  try {
+    await api(`/admin/users/${id}`, { method: 'DELETE' });
+    showNotification('User deleted', 'success');
+    loadUsers();
+  } catch (error) {
+    showNotification(error.message || 'Failed to delete user', 'error');
+  }
+}
+
+async function unlinkCurrentUserTelegram() {
+  const userId = document.getElementById('userId').value;
+  if (!userId) return;
+  if (!confirm('Unlink Telegram for this user?')) return;
+  try {
+    await api(`/admin/users/${userId}/unlink-telegram`, { method: 'POST' });
+    showNotification('Telegram unlinked', 'success');
+    editUser(userId);
+  } catch (error) {
+    showNotification(error.message || 'Failed to unlink Telegram', 'error');
+  }
+}
+
+async function toggleUserAlert(alertId, isActive) {
+  const userId = document.getElementById('userId').value;
+  try {
+    await api(`/admin/users/${userId}/alerts/${alertId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ is_active: isActive === true || isActive === 'true' }),
+    });
+    const response = await api(`/admin/users/${userId}`);
+    renderUserAlerts(response.data.alerts || []);
+    showNotification('Alert updated', 'success');
+  } catch (error) {
+    showNotification(error.message || 'Failed to update alert', 'error');
+  }
+}
+
+async function deleteUserAlert(alertId) {
+  const userId = document.getElementById('userId').value;
+  if (!confirm('Delete this alert?')) return;
+  try {
+    await api(`/admin/users/${userId}/alerts/${alertId}`, { method: 'DELETE' });
+    const response = await api(`/admin/users/${userId}`);
+    renderUserAlerts(response.data.alerts || []);
+    showNotification('Alert deleted', 'success');
+  } catch (error) {
+    showNotification(error.message || 'Failed to delete alert', 'error');
   }
 }
 
@@ -622,6 +1004,50 @@ function formatDate(dateString) {
   });
 }
 
+function dateInputValue(value) {
+  if (!value) return '';
+  return String(value).split('T')[0];
+}
+
+function splitCsv(value) {
+  return String(value || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function asList(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String);
+  if (!value) return [];
+  return splitCsv(String(value).replace(/^\{|\}$/g, ''));
+}
+
+function formatProfileStatus(status) {
+  if (status === 'confirmed') return 'Confirmed';
+  if (status === 'pending_confirm') return 'Pending';
+  return 'None';
+}
+
+function summarizeCriteria(criteria) {
+  if (!criteria || typeof criteria !== 'object') return 'No criteria';
+  return Object.entries(criteria)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join('/') : v}`)
+    .join(', ') || 'No criteria';
+}
+
+function fillCountySelects() {
+  const countyOptions = KENYA_COUNTIES.map((c) => `<option value="${c}">${c}</option>`).join('');
+  const jobCounty = document.getElementById('jobCounty');
+  if (jobCounty && jobCounty.options.length <= 1) {
+    jobCounty.innerHTML = '<option value="">Select county</option>' + countyOptions;
+  }
+  const countyFilter = document.getElementById('countyFilter');
+  if (countyFilter && countyFilter.options.length <= 1) {
+    countyFilter.innerHTML = '<option value="">All Counties</option>' + countyOptions;
+  }
+}
+
 function getJobTypeLabel(type) {
   const labels = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'On-site' };
   return labels[type] || type;
@@ -639,33 +1065,36 @@ function showNotification(message, type = 'info') {
 
 function renderPagination(containerId, pagination, onPageChange) {
   const container = document.getElementById(containerId);
-  if (!container || pagination.totalPages <= 1) {
+  if (!container) return;
+  if (!pagination || pagination.totalPages <= 1) {
     container.innerHTML = '';
     return;
   }
 
-  const { page, totalPages } = pagination;
-  let html = '';
+  const page = pagination.page;
+  const totalPages = pagination.totalPages;
+  const pages = [];
+  const windowSize = 5;
+  let start = Math.max(1, page - Math.floor(windowSize / 2));
+  let end = Math.min(totalPages, start + windowSize - 1);
+  start = Math.max(1, end - windowSize + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
 
-  html += `<button class="pagination-btn" ${page <= 1 ? 'disabled' : ''} onclick="arguments[0].stopPropagation()">
-    <i class="fas fa-chevron-left"></i>
-  </button>`;
+  container.innerHTML = `
+    <button type="button" class="pagination-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}>
+      <i class="fas fa-chevron-left"></i>
+    </button>
+    ${pages.map((n) => `<button type="button" class="pagination-btn ${n === page ? 'active' : ''}" data-page="${n}">${n}</button>`).join('')}
+    <button type="button" class="pagination-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''}>
+      <i class="fas fa-chevron-right"></i>
+    </button>
+  `;
 
-  for (let i = 1; i <= Math.min(totalPages, 5); i++) {
-    html += `<button class="pagination-btn ${i === page ? 'active' : ''}">${i}</button>`;
-  }
-
-  html += `<button class="pagination-btn" ${page >= totalPages ? 'disabled' : ''}>
-    <i class="fas fa-chevron-right"></i>
-  </button>`;
-
-  container.innerHTML = html;
-
-  container.querySelectorAll('.pagination-btn').forEach((btn, index) => {
+  container.querySelectorAll('.pagination-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      if (index === 0 && page > 1) onPageChange(page - 1);
-      else if (index === container.querySelectorAll('.pagination-btn').length - 1 && page < totalPages) onPageChange(page + 1);
-      else if (index > 0 && index < container.querySelectorAll('.pagination-btn').length - 1) onPageChange(index);
+      if (btn.disabled) return;
+      const next = parseInt(btn.dataset.page, 10);
+      if (next >= 1 && next <= totalPages && next !== page) onPageChange(next);
     });
   });
 }
@@ -714,15 +1143,36 @@ function initEventListeners() {
   document.getElementById('addCategoryBtn')?.addEventListener('click', () => openCategoryModal());
   document.getElementById('categoryForm')?.addEventListener('submit', saveCategory);
 
+  // Users
+  document.getElementById('addUserBtn')?.addEventListener('click', async () => {
+    await loadCategoriesForForm();
+    openUserModal();
+  });
+  document.getElementById('userForm')?.addEventListener('submit', saveUser);
+  document.getElementById('unlinkTelegramBtn')?.addEventListener('click', unlinkCurrentUserTelegram);
+
+  document.getElementById('userSearch')?.addEventListener('input', debounce(() => {
+    state.usersPage = 1;
+    loadUsers();
+  }, 300));
+  ['userRoleFilter', 'userProfileFilter', 'userTelegramFilter', 'userCvFilter'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('change', () => {
+      state.usersPage = 1;
+      loadUsers();
+    });
+  });
+
   // Job search and filter
   document.getElementById('jobSearch')?.addEventListener('input', debounce(() => {
     state.jobsPage = 1;
     loadJobs();
   }, 300));
 
-  document.getElementById('statusFilter')?.addEventListener('change', () => {
-    state.jobsPage = 1;
-    loadJobs();
+  ['statusFilter', 'jobCategoryFilter', 'sourceTypeFilter', 'verificationFilter', 'countyFilter'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('change', () => {
+      state.jobsPage = 1;
+      loadJobs();
+    });
   });
 
   // Select all checkbox
@@ -777,6 +1227,7 @@ function debounce(func, wait) {
 async function init() {
   console.log('🔧 Admin panel initialized');
 
+  fillCountySelects();
   initEventListeners();
 
   const isAuth = await checkAuth();

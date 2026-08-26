@@ -54,10 +54,12 @@ async function notifyTelegram(text) {
   }
 }
 
-async function run() {
+async function runSupplyHeartbeat(options = {}) {
   const args = process.argv.slice(2);
-  const asJson = args.includes('--json');
-  const alertOnlyOnFail = args.includes('--alert-only-on-fail');
+  const asJson = options.asJson ?? args.includes('--json');
+  const alertOnlyOnFail =
+    options.alertOnlyOnFail ?? args.includes('--alert-only-on-fail');
+  const exitProcess = options.exitProcess !== false;
 
   const maintenance = await expirePastDueJobs();
   const snapshot = await getSupplySnapshot();
@@ -119,16 +121,28 @@ async function run() {
     }
   }
 
-  await db.pool.end().catch(() => {});
-  process.exit(snapshot.gates_passed ? 0 : 2);
+  if (exitProcess) {
+    await db.pool.end().catch(() => {});
+    process.exit(snapshot.gates_passed ? 0 : 2);
+  }
+
+  return payload;
 }
 
-run().catch(async (err) => {
-  console.error('supplyHeartbeat fatal:', err);
-  try {
-    await db.pool.end();
-  } catch (_) {
-    /* ignore */
-  }
-  process.exit(1);
-});
+async function run() {
+  return runSupplyHeartbeat({ exitProcess: true });
+}
+
+if (require.main === module) {
+  run().catch(async (err) => {
+    console.error('supplyHeartbeat fatal:', err);
+    try {
+      await db.pool.end();
+    } catch (_) {
+      /* ignore */
+    }
+    process.exit(1);
+  });
+}
+
+module.exports = { runSupplyHeartbeat, run };

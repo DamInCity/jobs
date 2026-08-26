@@ -42,8 +42,8 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@jobswebsite.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changethispassword}
-      APP_URL: ${APP_URL:-http://localhost:3000}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      APP_URL: ${APP_URL:-https://jobs.usseo.one}
+      FRONTEND_URL: ${FRONTEND_URL:-https://jobs.usseo.one}
       RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
       RAPIDAPI_MAX_REQUESTS_PER_RUN: ${RAPIDAPI_MAX_REQUESTS_PER_RUN:-80}
       INGEST_MAX_JOBS_PER_SOURCE: ${INGEST_MAX_JOBS_PER_SOURCE:-400}
@@ -75,7 +75,9 @@ services:
     volumes:
       - cv_uploads:/app/uploads/cvs
     ports:
-      - "3000:3000"
+      # Host 3000 is used by other apps; production site uses PM2 on 3004 via host nginx.
+      # Keep a docker app available for compose stacks without clashing.
+      - "127.0.0.1:3005:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -100,7 +102,8 @@ services:
       DB_NAME: ${DB_NAME:-jobs_website}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      APP_URL: ${APP_URL:-http://localhost:3000}
+      APP_URL: ${APP_URL:-https://jobs.usseo.one}
+      FRONTEND_URL: ${FRONTEND_URL:-https://jobs.usseo.one}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       ALERT_LOOKBACK_DAYS: ${ALERT_LOOKBACK_DAYS:-30}
@@ -138,7 +141,8 @@ services:
       DB_NAME: ${DB_NAME:-jobs_website}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      APP_URL: ${APP_URL:-http://localhost:3000}
+      APP_URL: ${APP_URL:-https://jobs.usseo.one}
+      FRONTEND_URL: ${FRONTEND_URL:-https://jobs.usseo.one}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
@@ -177,7 +181,8 @@ services:
       DB_NAME: ${DB_NAME:-jobs_website}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      APP_URL: ${APP_URL:-http://localhost:3000}
+      APP_URL: ${APP_URL:-https://jobs.usseo.one}
+      FRONTEND_URL: ${FRONTEND_URL:-https://jobs.usseo.one}
       JOBS_FOCUS: ${JOBS_FOCUS:-kenya}
       DISABLE_KENYA_CAREERS: ${DISABLE_KENYA_CAREERS:-false}
       ENABLE_HTML_SCRAPERS: ${ENABLE_HTML_SCRAPERS:-false}
@@ -223,7 +228,8 @@ services:
       DB_NAME: ${DB_NAME:-jobs_website}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      APP_URL: ${APP_URL:-http://localhost:3000}
+      APP_URL: ${APP_URL:-https://jobs.usseo.one}
+      FRONTEND_URL: ${FRONTEND_URL:-https://jobs.usseo.one}
       SUPPLY_MIN_ACTIVE: ${SUPPLY_MIN_ACTIVE:-30}
       SUPPLY_MAX_STALE_HOURS: ${SUPPLY_MAX_STALE_HOURS:-36}
       SUPPLY_MIN_CATEGORIES: ${SUPPLY_MIN_CATEGORIES:-5}
@@ -275,6 +281,33 @@ services:
     networks:
       - jobs_network
 
+  # n8n automation (import docs/n8n/*.workflow.json)
+  # UI: http://127.0.0.1:5678 — set JOBSHUB_URL + JOBSHUB_INGEST_KEY via env
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: jobs_n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${N8N_HOST_PORT:-5678}:5678"
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: ${N8N_WEBHOOK_PUBLIC_URL:-http://127.0.0.1:5678/}
+      GENERIC_TIMEZONE: Africa/Nairobi
+      TZ: Africa/Nairobi
+      JOBSHUB_URL: ${JOBSHUB_URL:-https://jobs.usseo.one}
+      JOBSHUB_INGEST_KEY: ${JOBSHUB_INGEST_KEY:-}
+      # Basic auth for UI (change in .env)
+      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE:-true}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-changeme}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./docs/n8n:/workflows:ro
+    networks:
+      - jobs_network
+
   # Nginx Reverse Proxy (optional, for production)
   nginx:
     image: nginx:alpine
@@ -296,6 +329,7 @@ services:
 volumes:
   postgres_data:
   cv_uploads:
+  n8n_data:
 
 networks:
   jobs_network:

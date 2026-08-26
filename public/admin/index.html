@@ -223,6 +223,31 @@
               <option value="expired">Expired</option>
               <option value="draft">Draft</option>
             </select>
+            <select class="form-select" id="jobCategoryFilter">
+              <option value="">All Categories</option>
+            </select>
+            <select class="form-select" id="sourceTypeFilter">
+              <option value="">All Sources</option>
+              <option value="DIRECT">Direct</option>
+              <option value="BOARD">Board</option>
+              <option value="API">API</option>
+              <option value="COMPANY_CAREER">Company career</option>
+              <option value="GOVERNMENT">Government</option>
+              <option value="NGO">NGO</option>
+              <option value="RECRUITMENT_AGENCY">Agency</option>
+              <option value="PARTNER">Partner</option>
+              <option value="USER_SUBMITTED">User submitted</option>
+            </select>
+            <select class="form-select" id="verificationFilter">
+              <option value="">All Verification</option>
+              <option value="verified">Verified</option>
+              <option value="aggregated">Aggregated</option>
+              <option value="expired">Expired</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select class="form-select" id="countyFilter">
+              <option value="">All Counties</option>
+            </select>
           </div>
         </div>
 
@@ -243,13 +268,14 @@
                 <th>Category</th>
                 <th>Location</th>
                 <th>Type</th>
+                <th>Source</th>
                 <th>Status</th>
                 <th>Views</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="jobsTableBody">
-              <tr><td colspan="8" class="loading-cell">Loading...</td></tr>
+              <tr><td colspan="9" class="loading-cell">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -274,23 +300,59 @@
 
       <!-- Users View -->
       <div class="users-view hidden" id="usersView">
+        <div class="view-header">
+          <div class="view-actions">
+            <button class="btn btn-primary" id="addUserBtn">
+              <i class="fas fa-user-plus"></i> Add User
+            </button>
+          </div>
+          <div class="view-filters">
+            <input type="text" class="form-input" placeholder="Search name or email..." id="userSearch">
+            <select class="form-select" id="userRoleFilter">
+              <option value="">All Roles</option>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+            <select class="form-select" id="userProfileFilter">
+              <option value="">All Profiles</option>
+              <option value="none">None</option>
+              <option value="pending_confirm">Pending</option>
+              <option value="confirmed">Confirmed</option>
+            </select>
+            <select class="form-select" id="userTelegramFilter">
+              <option value="">Telegram</option>
+              <option value="linked">Linked</option>
+              <option value="unlinked">Unlinked</option>
+            </select>
+            <select class="form-select" id="userCvFilter">
+              <option value="">CV</option>
+              <option value="true">Has CV</option>
+              <option value="false">No CV</option>
+            </select>
+          </div>
+        </div>
+
         <div class="data-table-container">
           <table class="data-table">
             <thead>
               <tr>
                 <th>User</th>
                 <th>Email</th>
-                <th>Saved Jobs</th>
+                <th>Profile</th>
+                <th>Telegram</th>
+                <th>CV</th>
+                <th>Saved</th>
                 <th>Alerts</th>
                 <th>Joined</th>
-                <th>Last Login</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="usersTableBody">
-              <tr><td colspan="6" class="loading-cell">Loading...</td></tr>
+              <tr><td colspan="9" class="loading-cell">Loading...</td></tr>
             </tbody>
           </table>
         </div>
+        <div class="table-pagination" id="usersPagination"></div>
       </div>
     </div>
   </main>
@@ -298,7 +360,7 @@
   <!-- Job Form Modal -->
   <div class="modal" id="jobModal">
     <div class="modal-overlay" onclick="closeJobModal()"></div>
-    <div class="modal-content modal-lg">
+    <div class="modal-content modal-xl">
       <div class="modal-header">
         <h2 id="jobModalTitle">Add New Job</h2>
         <button class="modal-close" onclick="closeJobModal()">
@@ -307,52 +369,33 @@
       </div>
       <form id="jobForm" class="modal-body">
         <input type="hidden" id="jobId">
-        
+
+        <h3 class="form-section-title">Listing</h3>
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">Job Title *</label>
             <input type="text" class="form-input" id="jobTitle" required placeholder="e.g., Senior Software Developer">
           </div>
-          
           <div class="form-group">
-            <label class="form-label">Company Name *</label>
-            <input type="text" class="form-input" id="companyName" required placeholder="e.g., TechCorp">
+            <label class="form-label">Category</label>
+            <select class="form-select" id="jobCategory">
+              <option value="">Select Category</option>
+            </select>
           </div>
         </div>
-
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Company Logo URL</label>
-            <input type="url" class="form-input" id="companyLogo" placeholder="https://example.com/logo.png">
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">Company Website</label>
-            <input type="url" class="form-input" id="companyWebsite" placeholder="https://example.com">
-          </div>
-        </div>
-
         <div class="form-group">
           <label class="form-label">Job Description *</label>
           <textarea class="form-textarea" id="jobDescription" rows="6" required placeholder="Describe the role, responsibilities, and what makes this opportunity exciting..."></textarea>
         </div>
-
         <div class="form-group">
           <label class="form-label">Requirements</label>
           <textarea class="form-textarea" id="jobRequirements" rows="4" placeholder="List the skills, experience, and qualifications needed..."></textarea>
         </div>
-
         <div class="form-group">
           <label class="form-label">Benefits</label>
           <textarea class="form-textarea" id="jobBenefits" rows="3" placeholder="Describe the perks and benefits..."></textarea>
         </div>
-
-        <div class="form-grid form-grid-3">
-          <div class="form-group">
-            <label class="form-label">Location *</label>
-            <input type="text" class="form-input" id="jobLocation" required placeholder="e.g., Nairobi, Kenya">
-          </div>
-          
+        <div class="form-grid form-grid-4">
           <div class="form-group">
             <label class="form-label">Job Type *</label>
             <select class="form-select" id="jobType" required>
@@ -361,26 +404,85 @@
               <option value="onsite">On-site</option>
             </select>
           </div>
-          
           <div class="form-group">
-            <label class="form-label">Category</label>
-            <select class="form-select" id="jobCategory">
-              <option value="">Select Category</option>
+            <label class="form-label">Status</label>
+            <select class="form-select" id="jobStatus">
+              <option value="active">Active</option>
+              <option value="draft">Draft</option>
+              <option value="expired">Expired</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Posted Date</label>
+            <input type="date" class="form-input" id="postedDate">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Expiry Date</label>
+            <input type="date" class="form-input" id="expiryDate">
+          </div>
+        </div>
+        <div class="form-grid form-grid-3">
+          <div class="form-group">
+            <label class="form-label">Application Deadline</label>
+            <input type="date" class="form-input" id="jobDeadline">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Featured Until</label>
+            <input type="date" class="form-input" id="featuredUntil">
+          </div>
+          <div class="form-group">
+            <label class="form-checkbox-label">
+              <input type="checkbox" id="isFeatured">
+              <span class="checkmark"></span>
+              Featured job
+            </label>
           </div>
         </div>
 
+        <h3 class="form-section-title">Company</h3>
+        <div class="form-grid form-grid-3">
+          <div class="form-group">
+            <label class="form-label">Company Name *</label>
+            <input type="text" class="form-input" id="companyName" required placeholder="e.g., TechCorp">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Company Logo URL</label>
+            <input type="url" class="form-input" id="companyLogo" placeholder="https://example.com/logo.png">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Company Website</label>
+            <input type="url" class="form-input" id="companyWebsite" placeholder="https://example.com">
+          </div>
+        </div>
+
+        <h3 class="form-section-title">Location</h3>
+        <div class="form-grid form-grid-3">
+          <div class="form-group">
+            <label class="form-label">Location *</label>
+            <input type="text" class="form-input" id="jobLocation" required placeholder="e.g., Nairobi, Kenya">
+          </div>
+          <div class="form-group">
+            <label class="form-label">County</label>
+            <select class="form-select" id="jobCounty">
+              <option value="">Select county</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Country Code</label>
+            <input type="text" class="form-input" id="jobCountryCode" maxlength="2" placeholder="KE" value="KE">
+          </div>
+        </div>
+
+        <h3 class="form-section-title">Compensation</h3>
         <div class="form-grid form-grid-4">
           <div class="form-group">
             <label class="form-label">Min Salary</label>
             <input type="number" class="form-input" id="salaryMin" placeholder="50000">
           </div>
-          
           <div class="form-group">
             <label class="form-label">Max Salary</label>
             <input type="number" class="form-input" id="salaryMax" placeholder="80000">
           </div>
-          
           <div class="form-group">
             <label class="form-label">Currency</label>
             <select class="form-select" id="salaryCurrency">
@@ -390,7 +492,6 @@
               <option value="GBP">GBP</option>
             </select>
           </div>
-          
           <div class="form-group">
             <label class="form-label">Period</label>
             <select class="form-select" id="salaryPeriod">
@@ -401,36 +502,77 @@
           </div>
         </div>
 
-        <div class="form-grid">
+        <h3 class="form-section-title">Apply / URLs</h3>
+        <div class="form-grid form-grid-3">
           <div class="form-group">
             <label class="form-label">External Application URL *</label>
             <input type="url" class="form-input" id="externalLink" required placeholder="https://company.com/careers/apply">
           </div>
-          
           <div class="form-group">
-            <label class="form-label">Expiry Date</label>
-            <input type="date" class="form-input" id="expiryDate">
+            <label class="form-label">Application URL</label>
+            <input type="url" class="form-input" id="applicationUrl" placeholder="Direct apply URL if different">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Source URL</label>
+            <input type="url" class="form-input" id="sourceUrl" placeholder="Original listing URL">
           </div>
         </div>
 
-        <div class="form-grid">
+        <h3 class="form-section-title">Source / verification</h3>
+        <div class="form-grid form-grid-4">
           <div class="form-group">
-            <label class="form-label">Status</label>
-            <select class="form-select" id="jobStatus">
-              <option value="active">Active</option>
-              <option value="draft">Draft</option>
-              <option value="expired">Expired</option>
+            <label class="form-label">Source</label>
+            <input type="text" class="form-input" id="jobSource" placeholder="manual">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Source Type</label>
+            <select class="form-select" id="jobSourceType">
+              <option value="DIRECT">Direct</option>
+              <option value="BOARD">Board</option>
+              <option value="API">API</option>
+              <option value="COMPANY_CAREER">Company career</option>
+              <option value="GOVERNMENT">Government</option>
+              <option value="NGO">NGO</option>
+              <option value="RECRUITMENT_AGENCY">Agency</option>
+              <option value="PARTNER">Partner</option>
+              <option value="USER_SUBMITTED">User submitted</option>
             </select>
           </div>
-          
           <div class="form-group">
-            <label class="form-checkbox-label">
-              <input type="checkbox" id="isFeatured">
-              <span class="checkmark"></span>
-              Featured Job (highlighted placement)
-            </label>
+            <label class="form-label">Verification</label>
+            <select class="form-select" id="jobVerification">
+              <option value="verified">Verified</option>
+              <option value="aggregated">Aggregated</option>
+              <option value="expired">Expired</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Job Source ID</label>
+            <input type="text" class="form-input" id="jobSourceId" placeholder="UUID (optional)">
           </div>
         </div>
+        <div class="form-group">
+          <label class="form-checkbox-label" style="padding-top: 0;">
+            <input type="checkbox" id="isAggregated">
+            <span class="checkmark"></span>
+            Aggregated listing
+          </label>
+        </div>
+
+        <h3 class="form-section-title">SEO</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Meta Title</label>
+            <input type="text" class="form-input" id="metaTitle" maxlength="255" placeholder="Search snippet title">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Meta Description</label>
+            <input type="text" class="form-input" id="metaDescription" placeholder="Search snippet description">
+          </div>
+        </div>
+
+        <div class="readonly-meta hidden" id="jobReadonlyMeta"></div>
 
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" onclick="closeJobModal()">Cancel</button>
@@ -471,6 +613,149 @@
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" onclick="closeCategoryModal()">Cancel</button>
           <button type="submit" class="btn btn-primary">Save Category</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Form Modal -->
+  <div class="modal" id="userModal">
+    <div class="modal-overlay" onclick="closeUserModal()"></div>
+    <div class="modal-content modal-xl">
+      <div class="modal-header">
+        <h2 id="userModalTitle">Add User</h2>
+        <button class="modal-close" onclick="closeUserModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="userForm" class="modal-body">
+        <input type="hidden" id="userId">
+
+        <h3 class="form-section-title">Account</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Name</label>
+            <input type="text" class="form-input" id="userName" placeholder="Full name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email *</label>
+            <input type="email" class="form-input" id="userEmail" required placeholder="user@example.com">
+          </div>
+        </div>
+        <div class="form-grid form-grid-3">
+          <div class="form-group">
+            <label class="form-label">Role</label>
+            <select class="form-select" id="userRole">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password <span id="userPasswordHint">(required)</span></label>
+            <input type="password" class="form-input" id="userPassword" placeholder="Min 8 characters" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Avatar URL</label>
+            <input type="url" class="form-input" id="userAvatar" placeholder="https://…">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-checkbox-label" style="padding-top: 0;">
+            <input type="checkbox" id="userEmailVerified">
+            <span class="checkmark"></span>
+            Email verified
+          </label>
+        </div>
+
+        <h3 class="form-section-title">Notifications</h3>
+        <div class="form-grid form-grid-3">
+          <div class="form-group">
+            <label class="form-label">Notify channels</label>
+            <div class="checkbox-row">
+              <label><input type="checkbox" name="notifyChannel" value="email" checked> Email</label>
+              <label><input type="checkbox" name="notifyChannel" value="telegram"> Telegram</label>
+              <label><input type="checkbox" name="notifyChannel" value="whatsapp"> WhatsApp</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telegram username</label>
+            <input type="text" class="form-input" id="userTelegramUsername" placeholder="username (no @)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">WhatsApp number</label>
+            <input type="text" class="form-input" id="userWhatsapp" placeholder="+2547…">
+          </div>
+        </div>
+        <div class="telegram-row hidden" id="userTelegramRow">
+          <span id="userTelegramChat"></span>
+          <button type="button" class="btn btn-ghost btn-sm" id="unlinkTelegramBtn">Unlink Telegram</button>
+        </div>
+
+        <h3 class="form-section-title">Job preferences</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Preferred locations</label>
+            <input type="text" class="form-input" id="userPreferredLocations" placeholder="Nairobi, Remote (comma-separated)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preferred job types</label>
+            <div class="checkbox-row">
+              <label><input type="checkbox" name="prefJobType" value="remote"> Remote</label>
+              <label><input type="checkbox" name="prefJobType" value="hybrid"> Hybrid</label>
+              <label><input type="checkbox" name="prefJobType" value="onsite"> On-site</label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Preferred categories</label>
+          <select class="form-select form-select-multi" id="userPreferredCategories" multiple size="6"></select>
+          <p class="form-hint">Hold Ctrl/Cmd to select more than one.</p>
+        </div>
+
+        <h3 class="form-section-title">CV / profile</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Skills</label>
+            <input type="text" class="form-input" id="userSkills" placeholder="Excel, Python, Teaching (comma-separated)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Keywords</label>
+            <input type="text" class="form-input" id="userKeywords" placeholder="Matching keywords">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Profile summary</label>
+          <textarea class="form-textarea" id="userProfileSummary" rows="3" placeholder="Short professional summary"></textarea>
+        </div>
+        <div class="form-grid form-grid-3">
+          <div class="form-group">
+            <label class="form-label">Seniority</label>
+            <input type="text" class="form-input" id="userSeniority" placeholder="e.g. mid, senior">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Profile status</label>
+            <select class="form-select" id="userProfileStatus">
+              <option value="none">None</option>
+              <option value="pending_confirm">Pending confirm</option>
+              <option value="confirmed">Confirmed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">CV on file</label>
+            <p class="readonly-line" id="userCvMeta">No CV</p>
+          </div>
+        </div>
+
+        <div class="hidden" id="userAlertsSection">
+          <h3 class="form-section-title">Alerts</h3>
+          <div id="userAlertsList" class="alerts-admin-list"></div>
+        </div>
+
+        <div class="readonly-meta hidden" id="userReadonlyMeta"></div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeUserModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save User</button>
         </div>
       </form>
     </div>

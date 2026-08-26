@@ -172,11 +172,9 @@ Object.entries(pageRoutes).forEach(([route, file]) => {
   });
 });
 
-// Admin panel
-app.get('/admin', (req, res) => {
-  res.redirect(301, '/admin/');
-});
-app.get('/admin/', (req, res) => {
+// Admin panel (SPA): /admin, /admin/jobs, /admin/users, etc.
+app.get(/^\/admin(\/.*)?$/, (req, res, next) => {
+  if (path.extname(req.path)) return next();
   res.sendFile(path.join(publicDir, 'admin', 'index.html'));
 });
 

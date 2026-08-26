@@ -4,14 +4,22 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
         }
       },
       "id": "cron-planner",
       "name": "Every 6 hours",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
@@ -21,11 +29,14 @@
       "name": "Query planner (titles x locations)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [240, 0]
+      "position": [
+        240,
+        0
+      ]
     },
     {
       "parameters": {
-        "content": "## Discovery placeholder (must replace)\nReplace Discovery field map with real discovery:\n- SerpAPI / DataForSEO / ValueSERP Google Jobs using `searchQuery`\n- or HTTP Request to a board + HTML extract\n\nMap real fields only: title, company_name, external_link/url, location, description, category/categoryHint\n\nDo not invent example.com apply links — preprocess drops missing/blocked hosts.\n\nAfter ingest accepts jobs, JobsHub auto-runs daily alerts (Telegram/email).\nSet n8n env JOBSHUB_INGEST_KEY = JobsHub INGEST_API_KEY.",
+        "content": "## Discovery placeholder (must replace)\nReplace Discovery field map with real discovery:\n- SerpAPI / DataForSEO / ValueSERP Google Jobs using `searchQuery`\n- or HTTP Request to a board + HTML extract\n\nMap real fields only: title, company_name, external_link/url, location, description, category/categoryHint\n\nDo not invent example.com apply links \u2014 preprocess drops missing/blocked hosts.\n\nAfter ingest accepts jobs, JobsHub auto-runs daily alerts (Telegram/email).\nSet n8n env JOBSHUB_INGEST_KEY = JobsHub INGEST_API_KEY.",
         "height": 300,
         "width": 360
       },
@@ -33,7 +44,10 @@
       "name": "Note: wire discovery",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [480, -180]
+      "position": [
+        480,
+        -180
+      ]
     },
     {
       "parameters": {
@@ -89,7 +103,10 @@
       "name": "Discovery field map (wire SERP)",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [520, 0]
+      "position": [
+        520,
+        0
+      ]
     },
     {
       "parameters": {
@@ -99,7 +116,10 @@
       "name": "Preprocess",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [780, 0]
+      "position": [
+        780,
+        0
+      ]
     },
     {
       "parameters": {
@@ -127,21 +147,56 @@
       "name": "POST JobsHub ingest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1040, 0]
+      "position": [
+        1040,
+        0
+      ]
     }
   ],
   "connections": {
     "Every 6 hours": {
-      "main": [[{ "node": "Query planner (titles x locations)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Query planner (titles x locations)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Query planner (titles x locations)": {
-      "main": [[{ "node": "Discovery field map (wire SERP)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discovery field map (wire SERP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Discovery field map (wire SERP)": {
-      "main": [[{ "node": "Preprocess", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Preprocess",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Preprocess": {
-      "main": [[{ "node": "POST JobsHub ingest", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "POST JobsHub ingest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -149,6 +204,9 @@
   },
   "meta": {
     "templateCredsSetupCompleted": false,
-    "description": "Skeleton: schedule → multi-field queries → (wire Google SERP/board) → preprocess → JobsHub ingest. Set env JOBSHUB_INGEST_KEY. No example.com placeholder jobs."
-  }
+    "description": "Skeleton: schedule \u2192 multi-field queries \u2192 (wire Google SERP/board) \u2192 preprocess \u2192 JobsHub ingest. Set env JOBSHUB_INGEST_KEY. No example.com placeholder jobs."
+  },
+  "id": "bbf00ec4-bb1f-42be-921d-7f830f9cac07",
+  "active": false,
+  "versionId": "26763ba4-2675-42d0-976a-7dc5fe64fe6c"
 }
