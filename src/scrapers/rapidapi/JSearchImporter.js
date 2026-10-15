@@ -147,13 +147,6 @@ class JSearchImporter extends BaseScraper {
       ? raw.job_benefits.join(', ')
       : null;
 
-    let jobType = 'onsite';
-    if (raw.job_is_remote === true || raw.work_arrangement === 'remote') jobType = 'remote';
-    else if (raw.work_arrangement === 'hybrid') jobType = 'hybrid';
-    else if (typeof raw.job_is_remote === 'string' && raw.job_is_remote.toLowerCase().includes('remote')) {
-      jobType = 'remote';
-    }
-
     const salaryPeriod = (raw.job_salary_period || 'YEARLY').toString().toLowerCase();
     const periodMap = {
       year: 'yearly',
@@ -174,8 +167,9 @@ class JSearchImporter extends BaseScraper {
       description: raw.job_description || raw.job_title || '',
       requirements,
       benefits: benefitsFromHighlights || benefitsFromList || null,
-      location: raw.job_location || [raw.job_city, raw.job_state, raw.job_country].filter(Boolean).join(', ') || 'Remote',
-      job_type: jobType,
+      location: raw.job_location || [raw.job_city, raw.job_state, raw.job_country].filter(Boolean).join(', ') || '',
+      work_arrangement: raw.work_arrangement || raw.job_employment_type || '',
+      job_is_remote: raw.job_is_remote,
       category: mapCategory({
         title: raw.job_title,
         taxonomies: raw.job_function ? [raw.job_function] : [],

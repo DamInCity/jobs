@@ -7,6 +7,7 @@
  */
 
 require('dotenv').config();
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { Blob } = require('buffer');
@@ -14,6 +15,7 @@ const db = require('../db');
 const config = require('../config');
 const { ensurePreferenceAlert } = require('./emailAlerts');
 const resumeTailor = require('../services/resumeTailor');
+const cvInterview = require('../services/cvInterview');
 
 const TOKEN = config.telegram.botToken;
 const API = TOKEN ? `https://api.telegram.org/bot${TOKEN}` : null;
@@ -23,12 +25,64 @@ let running = true;
 
 /** chatId → [{ id, title, company_name }] for /resume N */
 const resumePickCache = new Map();
+/** chatId → expiry ms for interview-helper mode */
+const interviewModeUntil = new Map();
+const INTERVIEW_TTL_MS = 45 * 60 * 1000;
 
-async function apiCall(method, body) {
+function interviewOn(chatId) {
+  interviewModeUntil.set(String(chatId), Date.now() + INTERVIEW_TTL_MS);
+}
+
+function interviewOff(chatId) {
+  interviewModeUntil.delete(String(chatId));
+}
+
+function isInterviewMode(chatId) {
+  const until = interviewModeUntil.get(String(chatId));
+  if (!until) return false;
+  if (Date.now() > until) {
+    interviewModeUntil.delete(String(chatId));
+    return false;
+  }
+  interviewOn(chatId);
+  return true;
+}
+
+function interviewKeyboard() {
+  return {
+    inline_keyboard: [
+      [{ text: '⏹ Stop interview helper', callback_data: 'r:ask:stop', style: 'danger' }],
+    ],
+  };
+}
+
+const REPLY = {
+  INTERVIEW: '🎤 Interview',
+  TAILOR: '📋 Tailor CV',
+  UPDATE: '📄 Update CV',
+};
+
+function mainReplyKeyboard() {
+  return {
+    keyboard: [
+      [{ text: REPLY.INTERVIEW }, { text: REPLY.TAILOR }],
+      [{ text: REPLY.UPDATE }],
+    ],
+    resize_keyboard: true,
+    is_persistent: true,
+  };
+}
+
+function withReplyKeyboard(extra = {}) {
+  return { ...extra, reply_markup: extra.reply_markup || mainReplyKeyboard() };
+}
+
+async function apiCall(method, body, signal) {
   const response = await fetch(`${API}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body || {}),
+    signal: signal || AbortSignal.timeout(method === 'getUpdates' ? 40000 : 20000),
   });
   const data = await response.json();
   if (!data.ok) {
@@ -37,8 +91,7 @@ async function apiCall(method, body) {
   return data.result;
 }
 
-async function sendMessage(chatId, text) {
-  // Telegram message limit ~4096; keep safe margin
+async function sendMessage(chatId, text, extra = {}) {
   const chunks = [];
   let remaining = text;
   while (remaining.length > 4000) {
@@ -46,8 +99,23 @@ async function sendMessage(chatId, text) {
     remaining = remaining.slice(4000);
   }
   chunks.push(remaining);
-  for (const chunk of chunks) {
-    await apiCall('sendMessage', { chat_id: chatId, text: chunk });
+  let last;
+  for (let i = 0; i < chunks.length; i++) {
+    const payload = { chat_id: chatId, text: chunks[i] };
+    if (i === chunks.length - 1) Object.assign(payload, extra);
+    last = await apiCall('sendMessage', payload);
+  }
+  return last;
+}
+
+async function answerCallback(callbackQueryId, text) {
+  try {
+    await apiCall('answerCallbackQuery', {
+      callback_query_id: callbackQueryId,
+      text: text || undefined,
+    });
+  } catch {
+    /* already answered */
   }
 }
 
@@ -184,12 +252,9 @@ async function linkUser(token, chatId, from) {
     chatId,
     `✅ Linked to JobsHub as ${display}.\n\n` +
       `You will receive job opportunities matching your categories and filters.\n\n` +
-      `Commands:\n` +
-      `/status — account & channels\n` +
-      `/alerts — your active job filters\n` +
-      `/resume — tailor your CV for a matching job\n` +
-      `/help — help\n\n` +
-      `Manage preferences: ${config.app.url}/alerts`
+      `Use the buttons below — Interview, Tailor CV, or send a PDF.\n\n` +
+      `Manage preferences: ${config.app.url}/alerts`,
+    { reply_markup: mainReplyKeyboard() }
   );
   console.log(
     `✅ Linked Telegram chat ${chatId} → user ${user.email}${from?.username ? ` (@${from.username})` : ''}`
@@ -288,8 +353,56 @@ async function sendAlertsList(chatId) {
 }
 
 /**
- * /resume — list candidates; /resume N or /resume <job-uuid> — generate tailored PDF
+ * /resume — show tap-to-tailor buttons; optional job id still works.
  */
+function resumeKeyboard(candidates) {
+  const rows = candidates.slice(0, 8).map((c, i) => {
+    const label = `${i + 1}. ${(c.title || 'Role').slice(0, 28)} @ ${(c.company_name || 'Company').slice(0, 18)}`;
+    return [{ text: label.slice(0, 64), callback_data: `r:j:${c.id}` }];
+  });
+  rows.push([
+    { text: '🎤 Interview helper', callback_data: 'r:ask', style: 'primary' },
+    { text: '📄 Update my CV', callback_data: 'r:cv', style: 'success' },
+  ]);
+  rows.push([{ text: '🔄 Refresh jobs', callback_data: 'r:more' }]);
+  return { inline_keyboard: rows };
+}
+
+async function promptCvUpload(chatId) {
+  await sendMessage(
+    chatId,
+    'Send your CV in this chat as a PDF or Word file (.pdf / .docx).\n\nI’ll save it and use it the next time you tailor a resume.'
+  );
+}
+
+async function showResumeJobs(chatId, user) {
+  const candidates = await resumeTailor.getResumeCandidates(user.id, 8);
+  if (!candidates.length) {
+    await sendMessage(
+      chatId,
+      `I don’t have jobs to tailor for yet.\nBrowse and save a few roles, then tap Refresh:\n${config.app.url}`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📄 Update my CV', callback_data: 'r:cv', style: 'success' }],
+            [{ text: '🔄 Refresh jobs', callback_data: 'r:more' }],
+          ],
+        },
+      }
+    );
+    return;
+  }
+  resumePickCache.set(
+    String(chatId),
+    candidates.map((c) => ({ id: c.id, title: c.title, company_name: c.company_name }))
+  );
+  await sendMessage(
+    chatId,
+    'Tap a job to tailor your CV.\nI’ll send back a PDF when it’s ready.',
+    { reply_markup: resumeKeyboard(candidates) }
+  );
+}
+
 async function handleResume(chatId, arg) {
   const user = await findUserByChat(chatId);
   if (!user) {
@@ -301,62 +414,32 @@ async function handleResume(chatId, arg) {
   }
 
   if (!user.has_cv && !user.cv_path) {
-    await sendMessage(
-      chatId,
-      `Upload your master CV first:\n${config.app.url}/profile\n\nThen run /resume again.`
-    );
+    await sendMessage(chatId, 'I don’t have your CV yet.');
+    await promptCvUpload(chatId);
     return;
   }
 
   if (!resumeTailor.isLlmConfigured()) {
     await sendMessage(
       chatId,
-      'Resume AI is not configured on the server (SILICONFLOW_API_KEY). Ask the admin to set it in .env.'
+      'Resume AI is not configured on the server. Ask the admin to set OPENROUTER_API_KEY in .env.'
     );
     return;
   }
 
   const token = (arg || '').trim();
-
-  // List mode
   if (!token) {
-    const candidates = await resumeTailor.getResumeCandidates(user.id, 8);
-    if (!candidates.length) {
-      await sendMessage(
-        chatId,
-        `No matching jobs found yet.\nBrowse and save roles on the site, then try again:\n${config.app.url}`
-      );
-      return;
-    }
-    resumePickCache.set(String(chatId), candidates.map((c) => ({
-      id: c.id,
-      title: c.title,
-      company_name: c.company_name,
-    })));
-
-    const lines = [
-      'Tailor your CV for a role\n',
-      'Reply with /resume <number> or /resume <job-id>\n',
-    ];
-    candidates.forEach((c, i) => {
-      const src = c.source === 'saved' ? '★' : c.source === 'match' ? '≈' : '·';
-      lines.push(
-        `${i + 1}. ${src} ${c.title || 'Role'} @ ${c.company_name || 'Company'}` +
-          (c.location ? `\n   ${c.location}` : '')
-      );
-    });
-    lines.push(`\nHistory & downloads: ${config.app.url}/profile`);
-    await sendMessage(chatId, lines.join('\n'));
+    await showResumeJobs(chatId, user);
     return;
   }
 
-  // Resolve job id from list index or uuid / short id
   let jobId = null;
   if (/^\d{1,2}$/.test(token)) {
     const list = resumePickCache.get(String(chatId)) || [];
     const idx = parseInt(token, 10) - 1;
     if (idx < 0 || idx >= list.length) {
-      await sendMessage(chatId, 'Invalid number. Send /resume to refresh the list.');
+      await sendMessage(chatId, 'That number isn’t on the list. Tap a job below.');
+      await showResumeJobs(chatId, user);
       return;
     }
     jobId = list[idx].id;
@@ -364,24 +447,11 @@ async function handleResume(chatId, arg) {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)
   ) {
     jobId = token;
-  } else if (/^[0-9a-f]{8}$/i.test(token)) {
-    const r = await db.query(
-      `SELECT id FROM jobs WHERE id::text ILIKE $1 LIMIT 2`,
-      [`${token}%`]
-    );
-    if (r.rows.length === 1) {
-      jobId = r.rows[0].id;
-    } else if (r.rows.length > 1) {
-      await sendMessage(chatId, 'Ambiguous job id — use the full UUID or a list number.');
-      return;
-    }
   }
 
   if (!jobId) {
-    await sendMessage(
-      chatId,
-      'Could not resolve that job. Send /resume for a numbered list, or /resume <job-uuid>.'
-    );
+    await sendMessage(chatId, 'Tap a job button to tailor your CV.');
+    await showResumeJobs(chatId, user);
     return;
   }
 
@@ -390,41 +460,238 @@ async function handleResume(chatId, arg) {
     [jobId]
   );
   if (!jobMeta.rows[0]) {
-    await sendMessage(chatId, 'Job not found.');
+    await sendMessage(chatId, 'That job is no longer available. Pick another.');
+    await showResumeJobs(chatId, user);
     return;
   }
 
   const job = jobMeta.rows[0];
   await sendMessage(
     chatId,
-    `⏳ Tailoring your CV for:\n${job.title} @ ${job.company_name || 'Company'}\n\nThis can take up to a minute…`
+    `Working on your CV for:\n${job.title} @ ${job.company_name || 'Company'}\n\n` +
+      `Resume AI can take up to ~35 seconds. If it’s slow I’ll still send a focused PDF from your real CV.`
   );
 
   try {
     const row = await resumeTailor.tailorAndSave(user.id, jobId);
     const caption =
-      `✅ Tailored CV\n${row.job_title} @ ${row.company_name || ''}\n\n` +
-      `${(row.changes_summary || '').slice(0, 700)}\n\n` +
-      `Also on: ${config.app.url}/profile`;
+      `Ready — tailored CV\n${row.job_title} @ ${row.company_name || ''}\n\n` +
+      `${(row.changes_summary || '').slice(0, 700)}`;
 
     await sendDocument(chatId, row.file_path, {
       filename: row.original_name || 'tailored-cv.pdf',
       caption,
     });
+    await sendMessage(chatId, 'Want another role?', {
+      reply_markup: {
+        inline_keyboard: [[{ text: '📋 Show jobs again', callback_data: 'r:more' }]],
+      },
+    });
   } catch (error) {
     console.error('Telegram /resume failed:', error.message);
     await sendMessage(
       chatId,
-      `❌ Could not generate CV: ${error.message}\n\nUpload/check CV at ${config.app.url}/profile`
+      `Couldn’t generate that CV: ${error.message}\n\nYou can send a new PDF here, or update it on ${config.app.url}/profile`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📄 Update my CV', callback_data: 'r:cv' }],
+            [{ text: '📋 Show jobs', callback_data: 'r:more' }],
+          ],
+        },
+      }
     );
   }
 }
 
-async function handleUpdate(update) {
-  const message = update.message || update.edited_message;
-  if (!message?.text) return;
+async function downloadTelegramFile(fileId, destPath) {
+  const info = await apiCall('getFile', { file_id: fileId });
+  const filePath = info.file_path;
+  if (!filePath) throw new Error('Telegram did not return a file path');
+  const res = await fetch(`https://api.telegram.org/file/bot${TOKEN}/${filePath}`);
+  if (!res.ok) throw new Error(`Download failed (${res.status})`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  fs.mkdirSync(path.dirname(destPath), { recursive: true });
+  fs.writeFileSync(destPath, buf);
+  return buf.length;
+}
 
+function cvExtension(document) {
+  const name = String(document.file_name || '').toLowerCase();
+  if (name.endsWith('.pdf')) return '.pdf';
+  if (name.endsWith('.docx')) return '.docx';
+  const mime = String(document.mime_type || '').toLowerCase();
+  if (mime.includes('pdf')) return '.pdf';
+  if (mime.includes('wordprocessingml') || mime.includes('officedocument')) return '.docx';
+  return '';
+}
+
+async function handleCvDocument(chatId, document) {
+  const user = await findUserByChat(chatId);
+  if (!user) {
+    await sendMessage(
+      chatId,
+      `Link your JobsHub account first:\n${config.app.url}/alerts`
+    );
+    return;
+  }
+
+  const ext = cvExtension(document);
+  if (!ext) {
+    await sendMessage(chatId, 'Please send a PDF or Word (.docx) file.');
+    return;
+  }
+  const maxBytes = config.uploads?.maxCvBytes || 5 * 1024 * 1024;
+  if (document.file_size && document.file_size > maxBytes) {
+    await sendMessage(chatId, 'That file is too large. Please send a CV under 5 MB.');
+    return;
+  }
+
+  await sendMessage(chatId, 'Got it — saving your CV…');
+  const dest = path.join(config.uploads.cvDir, `${user.id}-${Date.now()}${ext}`);
+  try {
+    await downloadTelegramFile(document.file_id, dest);
+    const prev = await db.query('SELECT cv_path FROM users WHERE id = $1', [user.id]);
+    const oldPath = prev.rows[0]?.cv_path;
+    await db.query(
+      `
+      UPDATE users
+      SET cv_path = $1, cv_original_name = $2, cv_uploaded_at = NOW(),
+          master_resume_json = NULL, master_resume_parsed_at = NULL
+      WHERE id = $3
+      `,
+      [dest, document.file_name || `cv${ext}`, user.id]
+    );
+    if (oldPath && oldPath !== dest && fs.existsSync(oldPath)) {
+      try { fs.unlinkSync(oldPath); } catch { /* ignore */ }
+    }
+
+    await sendMessage(chatId, 'Got it. Reading your CV and parsing it for Resume AI — this can take up to a minute.');
+    const parsed = await resumeTailor.ensureMasterResume(user.id, { force: true });
+    const bits = [];
+    if (parsed.resume?.basics?.name) bits.push(parsed.resume.basics.name);
+    if (parsed.resume?.work?.length) bits.push(`${parsed.resume.work.length} roles`);
+    if (parsed.resume?.skills?.length) bits.push(`${parsed.resume.skills.length} skills`);
+    await sendMessage(
+      chatId,
+      `CV updated${bits.length ? ` — ${bits.join(' · ')}` : ''}.\nTap a job to tailor it.`
+    );
+    const fresh = await findUserByChat(chatId);
+    await showResumeJobs(chatId, fresh || user);
+  } catch (error) {
+    console.error('Telegram CV upload failed:', error.message);
+    await sendMessage(
+      chatId,
+      `Couldn’t update your CV: ${error.message}\nTry another PDF, or upload on ${config.app.url}/profile`
+    );
+  }
+}
+
+async function startInterviewMode(chatId) {
+  const user = await findUserByChat(chatId);
+  if (!user) {
+    await sendMessage(
+      chatId,
+      `Not linked yet.\nOpen ${config.app.url}/alerts and tap “Link Telegram”.`
+    );
+    return;
+  }
+  if (!user.has_cv && !user.cv_path) {
+    await sendMessage(chatId, 'I don’t have your CV yet. Send a PDF first.');
+    await promptCvUpload(chatId);
+    return;
+  }
+  if (!resumeTailor.isLlmConfigured()) {
+    await sendMessage(
+      chatId,
+      'Interview helper is not configured on the server (OPENROUTER_API_KEY).'
+    );
+    return;
+  }
+  interviewOn(chatId);
+  await sendMessage(
+    chatId,
+    'Interview helper is on for 45 minutes.\n\nPaste the question here (or forward it). I’ll draft a first-person answer using only your CV — no invented jobs or numbers.\n\nTap Stop when the interview is over.',
+    { reply_markup: interviewKeyboard() }
+  );
+}
+
+async function handleInterviewQuestion(chatId, question) {
+  const user = await findUserByChat(chatId);
+  if (!user) {
+    interviewOff(chatId);
+    await sendMessage(chatId, `Link your account first: ${config.app.url}/alerts`);
+    return;
+  }
+  await sendMessage(chatId, 'Drafting from your CV…');
+  try {
+    const { text } = await cvInterview.answerInterviewQuestion(user.id, question);
+    await sendMessage(chatId, text, { reply_markup: interviewKeyboard() });
+  } catch (error) {
+    console.error('Interview helper failed:', error.message);
+    await sendMessage(
+      chatId,
+      `Couldn’t draft that: ${error.message}`,
+      { reply_markup: interviewKeyboard() }
+    );
+  }
+}
+
+async function handleCallbackQuery(cq) {
+  const chatId = cq.message?.chat?.id;
+  const data = String(cq.data || '');
+  if (!chatId) {
+    await answerCallback(cq.id);
+    return;
+  }
+
+  if (data === 'r:more') {
+    await answerCallback(cq.id, 'Refreshing…');
+    await handleResume(chatId, '');
+    return;
+  }
+  if (data === 'r:cv') {
+    await answerCallback(cq.id);
+    await promptCvUpload(chatId);
+    return;
+  }
+  if (data === 'r:ask') {
+    await answerCallback(cq.id);
+    await startInterviewMode(chatId);
+    return;
+  }
+  if (data === 'r:ask:stop') {
+    interviewOff(chatId);
+    await answerCallback(cq.id, 'Stopped');
+    await sendMessage(chatId, 'Interview helper is off. Tap it again anytime you need it.');
+    return;
+  }
+  if (data.startsWith('r:j:')) {
+    const jobId = data.slice(4);
+    await answerCallback(cq.id, 'Tailoring…');
+    await handleResume(chatId, jobId);
+    return;
+  }
+  await answerCallback(cq.id);
+}
+
+async function handleUpdate(update) {
+  if (update.callback_query) {
+    await handleCallbackQuery(update.callback_query);
+    return;
+  }
+
+  const message = update.message || update.edited_message;
+  if (!message) return;
   const chatId = message.chat.id;
+
+  if (message.document) {
+    await handleCvDocument(chatId, message.document);
+    return;
+  }
+
+  if (!message.text) return;
+
   const text = message.text.trim();
   const command = text.split(/\s+/)[0].split('@')[0].toLowerCase();
   const arg = text.split(/\s+/).slice(1).join(' ').trim();
@@ -440,15 +707,12 @@ async function handleUpdate(update) {
     await sendMessage(
       chatId,
       'JobsHub bot\n\n' +
-        '/start — link account (use the link from the website)\n' +
-        '/status — check link & channels\n' +
-        '/alerts — list category / preference filters\n' +
-        '/resume — list matching jobs & tailor your CV\n' +
-        '/resume 1 — generate tailored PDF for list item #1\n' +
-        '/help — this message\n\n' +
-        `Job digests are sent when new listings match your filters.\n` +
-        `Profile & CV: ${config.app.url}/profile\n` +
-        `Alerts: ${config.app.url}/alerts`
+        'Tap the colored buttons below, or the ones on messages.\n\n' +
+        '🎤 Interview — answers from your CV\n' +
+        '📋 Tailor CV — pick a job, get a PDF\n' +
+        '📄 Update CV — send a PDF here\n\n' +
+        `Website: ${config.app.url}/profile`,
+      { reply_markup: mainReplyKeyboard() }
     );
     return;
   }
@@ -468,20 +732,69 @@ async function handleUpdate(update) {
     return;
   }
 
+  if (text === REPLY.INTERVIEW) {
+    await startInterviewMode(chatId);
+    return;
+  }
+  if (text === REPLY.TAILOR) {
+    await handleResume(chatId, '');
+    return;
+  }
+  if (text === REPLY.UPDATE) {
+    await promptCvUpload(chatId);
+    return;
+  }
+
+  if (command === '/ask' || command === '/interview') {
+    if (arg) {
+      interviewOn(chatId);
+      await handleInterviewQuestion(chatId, arg);
+    } else {
+      await startInterviewMode(chatId);
+    }
+    return;
+  }
+
+  if (command === '/askstop' || command === '/stopask') {
+    interviewOff(chatId);
+    await sendMessage(chatId, 'Interview helper is off.');
+    return;
+  }
+
+  if (isInterviewMode(chatId) && !text.startsWith('/')) {
+    await handleInterviewQuestion(chatId, text);
+    return;
+  }
+
   await sendMessage(
     chatId,
-    'JobsHub bot commands:\n/start — link account\n/status — account status\n/alerts — your filters\n/resume — tailor CV\n/help — help'
+    'Try /resume to tailor your CV, /ask for interview help, or send a PDF to update it.',
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '📋 Tailor my CV', callback_data: 'r:more', style: 'success' }],
+          [{ text: '🎤 Interview helper', callback_data: 'r:ask', style: 'primary' }],
+          [{ text: '📄 Update my CV', callback_data: 'r:cv' }],
+        ],
+      },
+    }
   );
 }
 
 async function poll() {
+  let abort = null;
   while (running) {
+    abort = new AbortController();
     try {
-      const updates = await apiCall('getUpdates', {
-        offset,
-        timeout: 30,
-        allowed_updates: ['message'],
-      });
+      const updates = await apiCall(
+        'getUpdates',
+        {
+          offset,
+          timeout: 25,
+          allowed_updates: ['message', 'callback_query'],
+        },
+        abort.signal
+      );
 
       for (const update of updates) {
         offset = update.update_id + 1;
@@ -492,10 +805,41 @@ async function poll() {
         }
       }
     } catch (error) {
+      if (!running) break;
       console.error('Poll error:', error.message);
-      await new Promise((r) => setTimeout(r, 3000));
+      const wait = /Conflict/i.test(error.message) ? 15000 : 3000;
+      await new Promise((r) => setTimeout(r, wait));
     }
   }
+}
+
+function webhookSecret() {
+  if (process.env.TELEGRAM_WEBHOOK_SECRET) return process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!TOKEN) return '';
+  return crypto.createHash('sha256').update(`jobshub-tg:${TOKEN}`).digest('hex').slice(0, 32);
+}
+
+function webhookUrl() {
+  const base = String(config.app.url || 'https://jobshub.co.ke').replace(/\/$/, '');
+  return `${base}/api/telegram/webhook`;
+}
+
+function verifyWebhookRequest(req) {
+  const expected = webhookSecret();
+  if (!expected) return false;
+  return req.get('X-Telegram-Bot-Api-Secret-Token') === expected;
+}
+
+async function registerWebhook() {
+  if (!TOKEN || !API) throw new Error('TELEGRAM_BOT_TOKEN missing');
+  const url = webhookUrl();
+  await apiCall('setWebhook', {
+    url,
+    secret_token: webhookSecret(),
+    allowed_updates: ['message', 'callback_query'],
+    drop_pending_updates: false,
+  });
+  console.log(`🤖 Telegram webhook set → ${url}`);
 }
 
 async function main() {
@@ -511,6 +855,21 @@ async function main() {
   }
 
   const me = await apiCall('getMe');
+  try {
+    await registerWebhook();
+    console.log(`🤖 Telegram bot @${me.username} in webhook mode (no long-poll).`);
+    await new Promise(() => {
+      setInterval(() => {}, 60 * 60 * 1000);
+    });
+    return;
+  } catch (err) {
+    console.warn('webhook unavailable, falling back to long-poll:', err.message);
+    try {
+      await apiCall('deleteWebhook', { drop_pending_updates: false });
+    } catch (e) {
+      console.warn('deleteWebhook:', e.message);
+    }
+  }
   console.log(`🤖 Telegram bot @${me.username} starting (long poll)...`);
   console.log(`   Link users via: https://t.me/${me.username}?start=<token>`);
   console.log(`   Digests are sent by the alerts job (schedule / post-scrape).`);
@@ -535,4 +894,10 @@ if (require.main === module) {
   });
 }
 
-module.exports = { linkUser, handleUpdate, findUserByChat };
+module.exports = {
+  linkUser,
+  handleUpdate,
+  findUserByChat,
+  verifyWebhookRequest,
+  registerWebhook,
+};

@@ -1,14 +1,17 @@
 require('dotenv').config();
 
-const DEFAULT_PUBLIC_URL = 'https://jobs.usseo.one';
+const DEFAULT_PUBLIC_URL = 'https://jobshub.co.ke';
 
 /**
  * Resolve the public site origin used in emails/Telegram/share links.
  * Never emit localhost/127.0.0.1 when NODE_ENV=production.
  */
 function resolvePublicUrl(raw, fallback = DEFAULT_PUBLIC_URL) {
-  const value = String(raw || '').trim().replace(/\/+$/, '');
+  let value = String(raw || '').trim().replace(/\/+$/, '');
   if (!value) return fallback;
+  // Retired domain — keep sending users to the current site even if a
+  // long-lived process still has the old APP_URL baked into its environment.
+  value = value.replace(/https?:\/\/(www\.)?jobs\.usseo\.one/i, fallback);
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(value)) {
     if ((process.env.NODE_ENV || 'development') === 'production') {
       return fallback;
@@ -86,14 +89,25 @@ const config = {
     apiKey: process.env.INGEST_API_KEY || '',
   },
 
-  // SpaceXAI / xAI for optional CV LLM profiling (fallback if SiliconFlow unset)
+  // OpenRouter (primary LLM for resume tailor — free models)
+  // https://openrouter.ai/docs — OpenAI-compatible /v1/chat/completions
+  openrouter: {
+    apiKey: process.env.OPENROUTER_API_KEY || '',
+    baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+    model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+    fallbackModels: String(process.env.OPENROUTER_FALLBACK_MODELS || 'cohere/north-mini-code:free')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  },
+
+  // SpaceXAI / xAI for optional CV LLM profiling (fallback if OpenRouter unset)
   xai: {
     apiKey: process.env.XAI_API_KEY || '',
     model: process.env.XAI_MODEL || 'grok-4.5',
   },
 
-  // SiliconFlow (primary LLM for CV profile + resume tailor)
-  // https://docs.siliconflow.cn — OpenAI-compatible /v1/chat/completions
+  // SiliconFlow (optional if OPENROUTER_API_KEY is unset)
   siliconflow: {
     apiKey: process.env.SILICONFLOW_API_KEY || '',
     baseUrl: process.env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1',

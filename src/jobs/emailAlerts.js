@@ -293,16 +293,17 @@ async function notifyN8n(payload) {
 
 function publicOrigin() {
   // Prefer frontend URL; both are sanitized in config for production
-  return String(config.app.frontendUrl || config.app.url || 'https://jobs.usseo.one').replace(/\/+$/, '');
+  return String(config.app.frontendUrl || config.app.url || 'https://jobshub.co.ke').replace(/\/+$/, '');
 }
 
-function jobUrl(job) {
+function jobUrl(job, forceOurSite = false) {
   const origin = publicOrigin();
-  if (job.slug) return `${origin}/jobs/${job.slug}`;
+  const ident = job.slug || job.id;
+  // Digests always point at our job page so the on-site modal can open.
+  if (ident && (forceOurSite || job.slug)) return `${origin}/jobs/${encodeURIComponent(ident)}`;
   const link = job.external_link || origin;
-  // Guard: never leak localhost apply/detail links in digests
-  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(link) && job.slug) {
-    return `${origin}/jobs/${job.slug}`;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(link) && ident) {
+    return `${origin}/jobs/${encodeURIComponent(ident)}`;
   }
   return link;
 }
@@ -315,7 +316,7 @@ function buildJobHtml(job) {
       <p style="margin: 0 0 12px; color: #9ca3af; font-size: 14px;">
         ${escapeHtml(job.job_type)} ${job.salary_min ? `• ${formatSalary(job.salary_min, job.salary_max, job.salary_currency)}` : ''}
       </p>
-      <a href="${jobUrl(job)}" 
+      <a href="${jobUrl(job, true)}"
          style="display: inline-block; background-color: #0d9488; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px;">
         View Job
       </a>
@@ -397,7 +398,7 @@ function buildTelegramMessage(userName, jobs, alertName, categoryLabel, options 
     const cat = job.category_name ? ` · ${job.category_name}` : '';
     lines.push(`${i + 1}. ${job.title} @ ${job.company_name}`);
     lines.push(`   ${job.location} · ${job.job_type}${cat}${salary ? ` · ${salary}` : ''}`);
-    lines.push(`   ${jobUrl(job)}`);
+    lines.push(`   ${jobUrl(job, true)}`);
     lines.push('');
   });
 
@@ -767,7 +768,7 @@ async function deliverAlert(alert, jobs, options = {}) {
         company: j.company_name,
         location: j.location,
         job_type: j.job_type,
-        url: jobUrl(j),
+        url: jobUrl(j, true),
       })),
     });
   }

@@ -783,3 +783,25 @@
   font-size: var(--font-size-xs);
   color: var(--gray-500);
 }
+
+/* Mobile-width crop used by the job image export preview and PNG capture. */
+.poster-capture {
+  width: 390px;
+  box-sizing: border-box;
+  background: var(--surface);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.poster-export-content {
+  width: 390px;
+  box-sizing: border-box;
+  padding: 20px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.poster-export-content .job-detail-header {
+  position: static;
+}
+

@@ -201,7 +201,7 @@ async function handleRegister(e) {
     showNotification('Account created! Upload your CV to get matched jobs.', 'success');
     // Default onboarding path unless caller specified another redirect
     const redirect = getRedirectTarget();
-    window.location.href = redirect === '/' ? '/alerts?onboarding=1' : redirect;
+    window.location.href = redirect === '/' ? '/profile?wizard=1' : redirect;
   } catch (error) {
     let message = error.message || 'Registration failed';
     if (error.errors?.length) {
@@ -235,6 +235,10 @@ async function initAuthPage() {
     !new URLSearchParams(window.location.search).has('force') &&
     (path === '/login' || path === '/signin' || path === '/register' || path === '/signup')
   ) {
+    if (state.user?.role === 'admin' && getRedirectTarget() === '/') {
+      window.location.replace('/admin');
+      return;
+    }
     window.location.replace(getRedirectTarget());
     return;
   }

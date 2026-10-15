@@ -10,12 +10,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Manage your JobsHub profile, CV, and AI-tailored resumes.">
   <title>Profile - JobsHub</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+  <link rel="mask-icon" href="/icons/icon-maskable-512.png" color="#ff4f5e">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="/css/main.css">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23FF4F5E'/><text x='50' y='68' text-anchor='middle' font-size='52' font-family='system-ui' font-weight='800' fill='white'>J</text></svg>">
+  <link rel="stylesheet" href="/css/main.css?v=12">
   <style>
     .profile-grid {
       display: grid;
@@ -51,9 +53,67 @@
     }
     .profile-table .changes-cell {
       color: var(--muted);
-      white-space: pre-line;
-      max-width: 280px;
+      max-width: 100%;
       font-size: 0.82rem;
+    }
+    .changes-clip {
+      max-height: 4.5em;
+      overflow: hidden;
+    }
+    .changes-clip.is-open {
+      max-height: none;
+    }
+    .changes-text {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .changes-more {
+      display: none;
+      margin-top: 0.35rem;
+      padding: 0;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--brand);
+      background: none;
+      border: 0;
+      cursor: pointer;
+    }
+    .changes-more.is-visible { display: inline-flex; }
+    .table-wrap {
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .profile-grid,
+    .alerts-panel,
+    .alerts-page {
+      min-width: 0;
+      max-width: 100%;
+    }
+    html { overflow-x: hidden; }
+    @media (max-width: 720px) {
+      .profile-table thead { display: none; }
+      .profile-table,
+      .profile-table tbody,
+      .profile-table tr,
+      .profile-table td {
+        display: block;
+        width: 100%;
+      }
+      .profile-table tr {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        margin-bottom: 0.75rem;
+        padding: 0.35rem 0.15rem 0.5rem;
+      }
+      .profile-table td {
+        border-bottom: none;
+        padding: 0.35rem 0.5rem;
+      }
+      .table-wrap { overflow-x: hidden; }
     }
     .candidate-list {
       display: flex;
@@ -123,7 +183,7 @@
     <div class="container">
       <nav class="nav">
         <a href="/" class="logo">
-          <span class="logo-mark" aria-hidden="true">J</span>
+          <img src="/icons/icon-192.png" alt="" class="logo-mark" aria-hidden="true" width="32" height="32">
           <span class="logo-text">Jobs<span>Hub</span></span>
         </a>
 
@@ -146,6 +206,7 @@
               <i class="fas fa-chevron-down" style="font-size:0.65rem;opacity:0.5"></i>
             </button>
             <div class="user-dropdown" id="userDropdown">
+              <a href="/admin" id="adminDashboardLink" class="hidden"><i class="fas fa-user-shield"></i> Admin dashboard</a>
               <a href="/"><i class="fas fa-briefcase"></i> Browse jobs</a>
               <a href="/alerts"><i class="fas fa-bell"></i> Your alerts</a>
               <a href="/profile"><i class="fas fa-user"></i> Profile</a>
@@ -263,7 +324,12 @@
 
           <!-- Master CV + skill profile -->
           <div class="alerts-panel">
-            <h2 class="alerts-panel-title"><i class="fas fa-file-alt"></i> Master CV</h2>
+            <h2 class="alerts-panel-title">
+              <i class="fas fa-file-alt"></i> Master CV
+              <button type="button" class="btn btn-ghost btn-sm" id="openWizardBtn" style="margin-left:auto;font-size:0.78rem">
+                Setup guide
+              </button>
+            </h2>
             <p class="text-muted" id="cvStatus">No CV uploaded yet.</p>
             <form id="cvForm" class="cv-form">
               <input type="file" id="cvFile" accept=".pdf,.doc,.docx,application/pdf" hidden>
@@ -274,11 +340,12 @@
                 <button type="button" class="btn btn-ghost btn-sm hidden" id="cvRemoveBtn">
                   <i class="fas fa-trash"></i> Remove
                 </button>
-                <button type="button" class="btn btn-ghost btn-sm hidden" id="parseResumeBtn">
-                  <i class="fas fa-brain"></i> Parse for AI
-                </button>
               </div>
-              <p class="form-hint">PDF or Word, max 5MB. This is the source for Telegram <code>/resume</code> tailoring.</p>
+              <p class="form-hint">PDF or Word, max 5MB. Upload parses it for Resume AI automatically (Telegram /resume uses the same file).</p>
+              <p class="cv-parse-banner" id="cvParseBanner">
+                <i class="fas fa-spinner fa-spin"></i>
+                Parsing your CV for Resume AI. This can take up to a minute — not frozen.
+              </p>
             </form>
 
             <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0">
@@ -344,7 +411,7 @@
           <div class="alerts-panel profile-span-2">
             <h2 class="alerts-panel-title"><i class="fas fa-history"></i> Tailored resumes</h2>
             <div id="tailoredEmpty" class="text-muted">No tailored CVs yet. Generate one above or via Telegram <code>/resume</code>.</div>
-            <div class="table-wrap" id="tailoredWrap" style="overflow-x:auto">
+            <div class="table-wrap" id="tailoredWrap">
               <table class="profile-table hidden" id="tailoredTable">
                 <thead>
                   <tr>
@@ -366,7 +433,8 @@
 
   <footer class="footer" data-site-footer></footer>
 
-  <script src="/js/common.js"></script>
-  <script src="/js/profile-page.js"></script>
+  <script src="/js/common.js?v=8"></script>
+  <script src="/js/setup-wizard.js?v=1"></script>
+  <script src="/js/profile-page.js?v=11"></script>
 </body>
 </html>

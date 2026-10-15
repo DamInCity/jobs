@@ -12,10 +12,14 @@ module.exports = {
       env: {
         NODE_ENV: 'development',
         PORT: 3004,
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
       },
       env_production: {
         NODE_ENV: 'production',
         PORT: 3004,
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
       },
       error_file: '/var/www/jobs/logs/error.log',
       out_file: '/var/www/jobs/logs/output.log',
@@ -35,6 +39,8 @@ module.exports = {
       cron_restart: '0 8 * * *', // Daily at 8 AM
       env_production: {
         NODE_ENV: 'production',
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
       },
     },
     {
@@ -42,11 +48,19 @@ module.exports = {
       cwd: '/var/www/jobs',
       script: 'src/jobs/telegramBot.js',
       instances: 1,
+      exec_mode: 'fork',
       autorestart: true,
       watch: false,
       max_memory_restart: '256M',
+      env: {
+        NODE_ENV: 'production',
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
+      },
       env_production: {
         NODE_ENV: 'production',
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
       },
       error_file: '/var/www/jobs/logs/telegram-error.log',
       out_file: '/var/www/jobs/logs/telegram-output.log',
@@ -67,6 +81,8 @@ module.exports = {
         NODE_ENV: 'production',
         ALERT_TEST_INTERVAL_MINUTES: '5',
         ALERT_LOOKBACK_DAYS: '30',
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
       },
       error_file: '/var/www/jobs/logs/alerts-test-error.log',
       out_file: '/var/www/jobs/logs/alerts-test-output.log',
@@ -84,9 +100,13 @@ module.exports = {
       max_memory_restart: '2G',
       env: {
         NODE_ENV: 'development',
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
       },
       env_production: {
         NODE_ENV: 'production',
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
       },
       error_file: '/var/www/jobs/logs/scraper-error.log',
       out_file: '/var/www/jobs/logs/scraper-output.log',
@@ -107,6 +127,8 @@ module.exports = {
       cron_restart: '15 4 * * 1',
       env_production: {
         NODE_ENV: 'production',
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
       },
       error_file: '/var/www/jobs/logs/scraper-quality-error.log',
       out_file: '/var/www/jobs/logs/scraper-quality-output.log',
@@ -125,6 +147,8 @@ module.exports = {
       cron_restart: '20 */6 * * *',
       env_production: {
         NODE_ENV: 'production',
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
       },
       error_file: '/var/www/jobs/logs/supply-heartbeat-error.log',
       out_file: '/var/www/jobs/logs/supply-heartbeat-output.log',
@@ -142,6 +166,8 @@ module.exports = {
       max_memory_restart: '256M',
       env_production: {
         NODE_ENV: 'production',
+        APP_URL: 'https://jobshub.co.ke',
+        FRONTEND_URL: 'https://jobshub.co.ke',
       },
       error_file: '/var/www/jobs/logs/supply-heartbeat-loop-error.log',
       out_file: '/var/www/jobs/logs/supply-heartbeat-loop-output.log',

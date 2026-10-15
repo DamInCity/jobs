@@ -10,6 +10,7 @@ const db = require('../db');
 const config = require('../config');
 const { extractCvText } = require('./cvProfiler');
 const llm = require('./llmClient');
+const ats = require('./atsPipeline');
 const {
   criteriaFromPreferences,
   findMatchingJobsWithFallback,
@@ -248,7 +249,7 @@ Rules:
       const { parsed } = await llm.chatJson({
         temperature: 0.2,
         maxTokens: 4096,
-        timeoutMs: 90000,
+        timeoutMs: 45000,
         messages: [
           { role: 'system', content: system },
           {
@@ -286,16 +287,17 @@ Rules:
 /**
  * Tailor master resume JSON toward a job posting.
  */
-async function tailorResumeJson(masterResume, job) {
+async function tailorResumeJson(masterResume, job, selection) {
   if (!llm.isConfigured()) {
     const err = new Error(
-      'Resume AI is not configured. Set SILICONFLOW_API_KEY (and SILICONFLOW_MODEL) in .env'
+      'Resume AI is not configured. Set OPENROUTER_API_KEY in .env'
     );
     err.status = 503;
     err.code = 'LLM_NOT_CONFIGURED';
     throw err;
   }
 
+  const locked = (selection?.skills || []).map((s) => s.name).filter(Boolean);
   const jobBlock = [
     `Title: ${job.title || ''}`,
     `Company: ${job.company_name || ''}`,
@@ -308,24 +310,49 @@ async function tailorResumeJson(masterResume, job) {
 {"resume":{...JSON Resume same shape as input...},"changes_summary":["bullet explaining a change",...]}
 Rules:
 1. NEVER invent employers, job titles, degrees, dates, tools, or metrics not supported by the master resume.
-2. You MAY rephrase bullets, reorder work/skills, emphasize relevant projects, and rewrite the summary for the role.
-3. Prefer omissions over fabrication. Drop irrelevant fluff if needed.
-4. Keep all real employers; you may de-emphasize less relevant roles with shorter bullets.
-5. changes_summary: 3-6 short plain-English bullets of what you changed.
-6. Output language: match the master resume (usually English).`;
+2. You MAY rephrase bullets, reorder work, emphasize relevant projects, and rewrite the summary for the role.
+3. LOCKED SKILLS — copy this list into resume.skills as [{"name":"...","keywords":[]}, ...]. Do not add, rename clusters, or expand it: ${JSON.stringify(locked)}
+4. Embed each locked skill at most once in an experience bullet (results, not a comma dump).
+5. Prefer omissions over fabrication. Drop irrelevant fluff if needed.
+6. Keep all real employers; you may de-emphasize less relevant roles with shorter bullets.
+7. changes_summary: 3-6 short plain-English bullets of what you changed.
+8. Output language: match the master resume (usually English).
+9. Reply with ONE JSON object only. Stop after the closing brace. No markdown, no second object.`;
 
-  const { parsed, provider } = await llm.chatJson({
-    temperature: 0.35,
-    maxTokens: 5000,
-    timeoutMs: 90000,
-    messages: [
-      { role: 'system', content: system },
-      {
-        role: 'user',
-        content: `JOB POSTING:\n${jobBlock}\n\nMASTER RESUME JSON:\n${JSON.stringify(masterResume)}`,
-      },
-    ],
-  });
+  let parsed;
+  let provider;
+  try {
+    const first = await llm.chatJson({
+      temperature: 0.2,
+      maxTokens: 2500,
+      timeoutMs: 35000,
+      messages: [
+        { role: 'system', content: system },
+        {
+          role: 'user',
+          content: `JOB POSTING:\n${jobBlock}\n\nMASTER RESUME JSON:\n${JSON.stringify(masterResume)}`,
+        },
+      ],
+    });
+    parsed = first.parsed;
+    provider = first.provider;
+  } catch (err) {
+    if (err.code === 'LLM_NOT_CONFIGURED') throw err;
+    const fallback = ats.lockSkills(
+      normalizeResume(masterResume, masterResume.basics?.name),
+      selection
+    );
+    const why = llm.isTimeoutErr?.(err) || err.code === 'LLM_TIMEOUT'
+      ? 'Resume AI timed out'
+      : 'Resume AI reply was unusable';
+    return {
+      resume: fallback,
+      changes_summary:
+        `${why}, so I kept your real work history and locked skills to this job.\n` +
+        `Target: ${job.title || 'the role'}`,
+      provider: 'rules',
+    };
+  }
 
   const resumeRaw = parsed.resume || parsed;
   const tailored = normalizeResume(resumeRaw, masterResume.basics?.name);
@@ -419,13 +446,11 @@ async function renderResumePdf(resume, outPath) {
 
   if (r.skills?.length) {
     content.push({ text: 'SKILLS', style: 'section' });
-    const skillText = r.skills
-      .map((s) => {
-        const k = s.keywords?.length ? ` (${s.keywords.join(', ')})` : '';
-        return s.name + k;
-      })
-      .join('  ·  ');
-    content.push({ text: skillText, style: 'body', margin: [0, 0, 0, 10] });
+    content.push({
+      text: ats.formatSkillsLine(r.skills),
+      style: 'body',
+      margin: [0, 0, 0, 10],
+    });
   }
 
   if (r.work?.length) {
@@ -609,7 +634,17 @@ async function tailorAndSave(userId, jobId) {
   }
 
   const { resume: master } = await ensureMasterResume(userId);
-  const { resume: tailored, changes_summary, provider } = await tailorResumeJson(master, job);
+  const selection = ats.selectSkills(master, job);
+  const { resume: tailoredRaw, changes_summary, provider } = await tailorResumeJson(
+    master,
+    job,
+    selection
+  );
+  const tailored = ats.lockSkills(tailoredRaw, selection);
+  const atsScore = ats.scoreTailored(tailored, job, selection);
+  const summary = [`${atsScore.caption} · stuffing ${atsScore.stuffing}`, changes_summary]
+    .filter(Boolean)
+    .join('\n');
 
   const dir = tailoredDir(userId);
   const safeCompany = String(job.company_name || 'company')
@@ -641,7 +676,7 @@ async function tailorAndSave(userId, jobId) {
       job.company_name,
       filePath,
       originalName,
-      changes_summary,
+      summary,
       JSON.stringify(tailored),
     ]
   );
@@ -653,6 +688,7 @@ async function tailorAndSave(userId, jobId) {
     ...row,
     file_path: filePath,
     provider,
+    ats_score: atsScore,
     download_path: `/api/users/resume/tailored/${row.id}/download`,
   };
 }

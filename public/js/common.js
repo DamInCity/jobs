@@ -121,8 +121,11 @@ function updateAuthUI(isLoggedIn) {
     if (userAvatar) {
       userAvatar.textContent = display.charAt(0).toUpperCase();
     }
+    const adminDashboardLink = document.getElementById('adminDashboardLink');
+    adminDashboardLink?.classList.toggle('hidden', state.user.role !== 'admin');
     if (mobileAuth) {
       mobileAuth.innerHTML = `
+        ${state.user.role === 'admin' ? '<a href="/admin" class="btn btn-primary btn-block">Admin dashboard</a>' : ''}
         <a href="/profile" class="btn btn-ghost btn-block">Profile</a>
         <a href="/alerts" class="btn btn-ghost btn-block">Your alerts</a>
         <a href="/" class="btn btn-ghost btn-block">Browse jobs</a>
@@ -363,11 +366,53 @@ window.setMobileMenuOpen = setMobileMenuOpen;
 window.toggleMobileMenu = toggleMobileMenu;
 window.initCommonNav = initCommonNav;
 window.injectSiteFooter = injectSiteFooter;
+window.injectBottomNav = injectBottomNav;
 window.registerServiceWorker = registerServiceWorker;
+
+/**
+ * Mobile footer menu (Jobs / Explore / Alerts / Profile) on inner pages.
+ * Homepage and Kenya already ship their own .bottom-nav.
+ */
+function injectBottomNav() {
+  if (document.querySelector('.bottom-nav')) return;
+  if (document.body?.dataset.noBottomNav === '1') return;
+
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  if (/^\/(login|signin|register|signup|sign-up|forgot-password|reset-password|admin)/.test(path)) {
+    return;
+  }
+
+  const items = [
+    { href: '/', icon: 'fa-briefcase', label: 'Jobs', match: (p) => p === '/' || p.startsWith('/jobs/') || p.startsWith('/kenya') },
+    { href: '/categories', icon: 'fa-compass', label: 'Explore', match: (p) => p.startsWith('/categories') },
+    { href: '/alerts', icon: 'fa-bell', label: 'Alerts', match: (p) => p.startsWith('/alerts') || p === '/job-alerts' },
+    { href: '/profile', icon: 'fa-user', label: 'Profile', match: (p) => p.startsWith('/profile') || p === '/account' },
+  ];
+
+  const nav = document.createElement('nav');
+  nav.className = 'bottom-nav';
+  nav.setAttribute('aria-label', 'Mobile');
+  nav.innerHTML = `
+    <div class="bottom-nav-inner">
+      ${items
+        .map(
+          (item) => `
+        <a href="${item.href}" class="bottom-nav-item${item.match(path) ? ' active' : ''}">
+          <i class="fas ${item.icon}"></i>
+          ${item.label}
+        </a>`
+        )
+        .join('')}
+    </div>
+  `;
+  document.body.appendChild(nav);
+  document.body.classList.add('has-bottom-nav');
+}
 
 function bootCommon() {
   initCommonNav();
   injectSiteFooter();
+  injectBottomNav();
   registerServiceWorker();
 }
 

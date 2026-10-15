@@ -5,7 +5,7 @@
 
 const DEFAULT_HEADERS = {
   'User-Agent':
-    'JobsHubBot/1.0 (+https://jobs.usseo.one; kenya-career-aggregator; polite crawl)',
+    'JobsHubBot/1.0 (+https://jobshub.co.ke; kenya-career-aggregator; polite crawl)',
   Accept: 'application/json, text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
   'Accept-Language': 'en-KE,en;q=0.9',
 };
@@ -97,7 +97,6 @@ async function fetchGreenhouse(source) {
       application_url: applyUrl,
       source_url: source.base_url,
       posted_date: item.updated_at || item.created_at || null,
-      job_type: /remote/i.test(location) ? 'remote' : 'onsite',
       county_hint: source.county_hint,
       country_code: source.country_code || 'KE',
       source_type: source.source_type,
@@ -137,7 +136,7 @@ async function fetchLever(source) {
       application_url: item.applyUrl || applyUrl,
       source_url: source.base_url,
       posted_date: item.createdAt ? new Date(item.createdAt) : null,
-      job_type: /remote/i.test(String(item.workplaceType || location)) ? 'remote' : 'onsite',
+      work_arrangement: item.workplaceType || '',
       county_hint: source.county_hint,
       country_code: 'KE',
       source_type: source.source_type,
@@ -177,7 +176,6 @@ async function fetchWorkable(source) {
       application_url: applyUrl,
       source_url: source.base_url,
       posted_date: item.published_on || null,
-      job_type: /remote/i.test(location) ? 'remote' : 'onsite',
       county_hint: source.county_hint,
       country_code: 'KE',
       source_type: source.source_type,
@@ -324,9 +322,7 @@ async function fetchGenericHtml(source) {
             country_code: 'KE',
             source_type: source.source_type,
             source: `kenya:${source.slug}`,
-            job_type: /TELECOMMUTE|remote/i.test(JSON.stringify(item.jobLocationType || ''))
-              ? 'remote'
-              : 'onsite',
+            work_arrangement: item.jobLocationType || '',
           });
         }
       }

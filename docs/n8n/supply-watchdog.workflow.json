@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.JOBSHUB_URL || 'https://jobs.usseo.one' }}/api/health/supply",
+        "url": "={{ $env.JOBSHUB_URL || 'https://jobshub.co.ke' }}/api/health/supply",
         "options": {
           "timeout": 30000,
           "response": {
@@ -78,7 +78,7 @@
     },
     {
       "parameters": {
-        "content": "## On failure\nWire TRUE branch to:\n- Telegram / Slack / email\n- Optional: HTTP Request POST to trigger a manual scrape runner if you host one\n- Optional: call your model agent webhook to investigate logs\n\nEnv:\n- JOBSHUB_URL=https://jobs.usseo.one\n\nPair with **JobsHub Google/Board Ingest** workflow for continuous discovery \u2192 POST /api/ingest/jobs.",
+        "content": "## On failure\nWire TRUE branch to:\n- Telegram / Slack / email\n- Optional: HTTP Request POST to trigger a manual scrape runner if you host one\n- Optional: call your model agent webhook to investigate logs\n\nEnv:\n- JOBSHUB_URL=https://jobshub.co.ke\n\nPair with **JobsHub Google/Board Ingest** workflow for continuous discovery \u2192 POST /api/ingest/jobs.",
         "height": 280,
         "width": 360
       },

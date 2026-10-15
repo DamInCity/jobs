@@ -251,7 +251,7 @@ function escapeHtmlEmail(str) {
 // Get current user profile
 router.get('/profile', authenticate, asyncHandler(async (req, res) => {
   const result = await db.query(`
-    SELECT id, email, name, avatar_url, preferred_locations, preferred_job_types, 
+    SELECT id, email, name, role, avatar_url, preferred_locations, preferred_job_types, 
            preferred_categories, email_verified, created_at,
            telegram_chat_id, telegram_username, whatsapp_number, notify_channels,
            cv_original_name, cv_uploaded_at,
@@ -745,11 +745,22 @@ router.post(
       }
     }
 
+    let masterNote = '';
+    try {
+      const parsed = await resumeTailor.ensureMasterResume(req.user.id, { force: true });
+      const roles = parsed.resume?.work?.length || 0;
+      const skills = parsed.resume?.skills?.length || 0;
+      masterNote = ` Resume AI parsed ${roles} roles, ${skills} skill groups.`;
+    } catch (err) {
+      console.warn(`Master resume parse after upload failed for ${req.user.id}:`, err.message);
+      masterNote = ' Resume AI parse will retry when you tailor a CV.';
+    }
+
     res.status(201).json({
       success: true,
       message: profileError
-        ? 'CV uploaded, but automatic profiling failed — set preferences manually'
-        : 'CV uploaded and profiled — please confirm your profile',
+        ? `CV uploaded, but automatic profiling failed — set preferences manually.${masterNote}`
+        : `CV uploaded and profiled — please confirm your profile.${masterNote}`,
       data: {
         ...formatProfile(row, categoryNames),
         profiling: profile
@@ -1172,6 +1183,7 @@ function formatProfile(row, categoryNames = []) {
     id: row.id,
     email: row.email,
     name: row.name,
+    role: row.role,
     avatar_url: row.avatar_url,
     preferred_locations: row.preferred_locations,
     preferred_job_types: row.preferred_job_types,

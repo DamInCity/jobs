@@ -82,7 +82,8 @@ function preprocessJob(raw, options = {}) {
   );
 
   let location = String(input.location || input.job_location || '').trim().replace(/\s+/g, ' ');
-  if (!location) {
+  // Never invent "Remote" for office jobs — placeholder locations stay unspecified unless the role is actually remote.
+  if (!location || (isRemotePlaceholder(location) && jobType === 'onsite')) {
     location = jobType === 'remote' ? 'Remote' : 'Not specified';
   }
   location = location.slice(0, 255);
@@ -238,14 +239,121 @@ function sanitizeHtml(html) {
     .replace(/javascript:/gi, '');
 }
 
+// "remote" as geography/tech, not a workplace type
+const INCIDENTAL_REMOTE_RE =
+  /\bremote\s+(?:sensing|area|areas|community|communities|village|villages|location|locations|monitor|monitoring|patient|patients|island|islands|desktop|access|control)\b/gi;
+
+const NEGATIVE_REMOTE_RE = /\b(?:not|non|no)\s*-?\s*remote\b|\boffice[- ]based\b|\bin-?office\b/i;
+
+const HYBRID_RE = /\bhybrid\b/i;
+
+const STRONG_REMOTE_RE =
+  /\b(?:fully\s+remote|100\s*%\s*remote|remote-first|work\s+from\s+home|work\s+from\s+anywhere|this\s+is\s+an?\s+remote\s+(?:role|position|job)|remote\s+(?:role|position|job))\b/i;
+
+const TITLE_REMOTE_TAG_RE =
+  /[(\[]\s*remote\s*[)\]]|\bremote\b\s*[-–|/:]|[-–|/]\s*\bremote\b|^\s*remote\b|\bwork\s+from\s+home\b|\bwfh\b/i;
+
+const REMOTE_WORKPLACE_TOKEN_RE =
+  /^(?:remote|wfh|work from home|work-from-home|telecommute|telecommuting|tele-commute|remote work)$/i;
+
+const REMOTE_PLACEHOLDER_RE =
+  /^(?:remote(?:\s+work)?|wfh|work from home|work from anywhere|anywhere|worldwide|global)(?:\s+only)?$/i;
+
+function scrubIncidentalRemote(text) {
+  return String(text || '').replace(INCIDENTAL_REMOTE_RE, ' ');
+}
+
+function isRemotePlaceholder(location) {
+  return REMOTE_PLACEHOLDER_RE.test(String(location || '').trim());
+}
+
+function hasPhysicalLocation(location) {
+  const s = String(location || '').trim();
+  if (!s) return false;
+  const withoutRemote = s
+    .replace(/[(\[]\s*remote\s*[)\]]/gi, ' ')
+    .replace(/\b(?:remote|wfh|telecommute|telecommuting)\b/gi, ' ')
+    .replace(/\bwork\s+from\s+(?:home|anywhere)\b/gi, ' ')
+    .replace(/[\s,|/–-]+/g, ' ')
+    .trim();
+  if (!withoutRemote || REMOTE_PLACEHOLDER_RE.test(withoutRemote)) return false;
+  const filler = /^(?:work|from|home|anywhere|worldwide|global|only|role|position|job|based)$/i;
+  return withoutRemote.split(/\s+/).some((t) => t && !filler.test(t));
+}
+
+function structuredWorkplace(value) {
+  const s = String(value || '').trim().toLowerCase();
+  if (!s) return null;
+  if (HYBRID_RE.test(s)) return 'hybrid';
+  if (REMOTE_WORKPLACE_TOKEN_RE.test(s) || /\btelecommute\b/.test(s)) return 'remote';
+  if (NEGATIVE_REMOTE_RE.test(s) || /\b(?:onsite|on-site|on site)\b/.test(s)) return 'onsite';
+  // "FULL_TIME, REMOTE" / "REMOTE - FULL TIME"
+  if (/\bremote\b/.test(s) && !INCIDENTAL_REMOTE_RE.test(s)) {
+    if (/[/,]|full[- ]?time|part[- ]?time|contract|permanent|temporary|freelance/.test(s)) {
+      return 'remote';
+    }
+  }
+  return null;
+}
+
+function isRemoteApiFlag(raw) {
+  if (raw.job_is_remote === true || raw.remote === true) return true;
+  if (typeof raw.job_is_remote === 'string') {
+    return /^\s*(true|yes|remote|1)\s*$/i.test(raw.job_is_remote);
+  }
+  return false;
+}
+
+/**
+ * On-site unless the listing itself says remote or hybrid.
+ * API booleans like job_is_remote are ignored when a physical city is present.
+ */
 function normalizeJobType(value, raw = {}) {
-  const s = String(value || '').toLowerCase();
-  if (raw.job_is_remote === true || raw.remote === true) return 'remote';
-  if (/\bremote\b/.test(s) || s === 'wfh' || s === 'work from home') return 'remote';
-  if (/\bhybrid\b/.test(s)) return 'hybrid';
-  if (/\bonsite\b|\bon-site\b|\bon site\b|\bin-?office\b/.test(s)) return 'onsite';
-  if (['remote', 'hybrid', 'onsite'].includes(s)) return s;
+  const title = String(raw.title || raw.job_title || '');
+  const location = String(raw.location || raw.job_location || '');
+  const description = String(raw.description || raw.job_description || '').slice(0, 8000);
+  const arrangement = String(
+    raw.work_arrangement || raw.location_type || raw.ai_work_arrangement || raw.jobLocationType || ''
+  );
+
+  const titleScrubbed = scrubIncidentalRemote(title);
+  const locScrubbed = scrubIncidentalRemote(location);
+  const descScrubbed = scrubIncidentalRemote(description);
+  const hybridBlob = `${value || ''} ${arrangement} ${location} ${titleScrubbed}`;
+
+  if (HYBRID_RE.test(hybridBlob)) return 'hybrid';
+
+  if (NEGATIVE_REMOTE_RE.test(`${value || ''} ${arrangement} ${locScrubbed} ${titleScrubbed}`)) {
+    return 'onsite';
+  }
+
+  const fromValue = structuredWorkplace(value);
+  const fromArrangement = structuredWorkplace(arrangement);
+  if (fromValue === 'remote' || fromArrangement === 'remote') return 'remote';
+
+  if (isRemotePlaceholder(location)) return 'remote';
+  if (TITLE_REMOTE_TAG_RE.test(locScrubbed) && /\b(?:remote|wfh|telecommute|work from home)\b/i.test(location)) {
+    return 'remote';
+  }
+  if (TITLE_REMOTE_TAG_RE.test(titleScrubbed)) return 'remote';
+  if (STRONG_REMOTE_RE.test(descScrubbed)) return 'remote';
+
+  if (fromValue === 'onsite' || fromArrangement === 'onsite') return 'onsite';
+
+  // Noisy Google/JSearch flag: only trust it when there is no city/country to go on.
+  if (isRemoteApiFlag(raw) && !hasPhysicalLocation(location)) return 'remote';
+
   return 'onsite';
+}
+
+/** Re-infer from listing text, ignoring a previously stored job_type. */
+function inferJobType(raw = {}) {
+  const { job_type: _stored, ...rest } = raw;
+  void _stored;
+  const location = isRemotePlaceholder(rest.location)
+    ? (rest.county || '')
+    : rest.location;
+  return normalizeJobType(rest.work_arrangement || rest.employment_type, { ...rest, location });
 }
 
 function parseDate(value) {
@@ -321,6 +429,8 @@ module.exports = {
   preprocessJobs,
   normalizeUrl,
   normalizeJobType,
+  inferJobType,
+  isRemotePlaceholder,
   sanitizeHtml,
   parseSalary,
 };

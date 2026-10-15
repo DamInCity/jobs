@@ -124,7 +124,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://jobs.usseo.one/api/ingest/jobs",
+        "url": "https://jobshub.co.ke/api/ingest/jobs",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

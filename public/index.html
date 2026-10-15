@@ -3,22 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="Discover work worth waking up for. Curated opportunities from great companies — updated daily.">
-  <meta name="keywords" content="jobs, careers, employment, hiring, job search, remote jobs">
+  <meta name="description" content="JobsHub Kenya — Find your next adventure. Curated jobs in Kenya, Nairobi, Mombasa and across the country — updated daily with verified opportunities.">
+  <meta name="keywords" content="jobs in kenya, kenyan jobs, nairobi jobs, mombasa jobs, careers kenya, employment kenya, job search kenya, remote jobs kenya, government jobs kenya, ngo jobs kenya">
   <meta name="theme-color" content="#FF4F5E">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="JobsHub">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>JobsHub — Find work worth waking up for</title>
+  <!-- Open Graph / Social -->
+  <meta property="og:title" content="JobsHub Kenya — Find your next adventure">
+  <meta property="og:description" content="Curated jobs in Kenya, Nairobi, Mombasa and across the country. Verified opportunities updated daily.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://jobshub.co.ke">
+  <meta property="og:site_name" content="JobsHub">
+  <meta property="og:locale" content="en_KE">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="JobsHub Kenya — Find your next adventure">
+  <meta name="twitter:description" content="Curated jobs in Kenya, Nairobi, Mombasa and across the country. Verified opportunities updated daily.">
+  <link rel="canonical" href="https://jobshub.co.ke">
+  <title>JobsHub Kenya — Find jobs in Kenya, Nairobi & Mombasa | JobsHub</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+  <link rel="mask-icon" href="/icons/icon-maskable-512.png" color="#ff4f5e">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="/css/main.css">
-  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/css/main.css?v=12">
 </head>
 <body class="has-bottom-nav">
   <!-- Header -->
@@ -26,7 +40,7 @@
     <div class="container">
       <nav class="nav" aria-label="Primary">
         <a href="/" class="logo">
-          <span class="logo-mark" aria-hidden="true">J</span>
+          <img src="/icons/icon-192.png" alt="" class="logo-mark" aria-hidden="true" width="32" height="32">
           <span class="logo-text">Jobs<span>Hub</span></span>
         </a>
 
@@ -49,6 +63,7 @@
               <i class="fas fa-chevron-down" style="font-size:0.65rem;opacity:0.5"></i>
             </button>
             <div class="user-dropdown" id="userDropdown" role="menu">
+              <a href="/admin" id="adminDashboardLink" class="hidden" role="menuitem"><i class="fas fa-user-shield"></i> Admin dashboard</a>
               <a href="/alerts" role="menuitem"><i class="fas fa-bell"></i> Your alerts</a>
               <a href="/alerts" role="menuitem"><i class="fas fa-bookmark"></i> Your shortlist</a>
               <a href="/profile" role="menuitem"><i class="fas fa-user"></i> Profile</a>
@@ -93,7 +108,7 @@
               Fresh roles added every day
             </div>
 
-            <h1 class="hero-title">Find work worth <em><span class="hero-rotator" id="heroRotator" aria-hidden="true">you</span></em><span class="sr-only">you</span></h1>
+            <h1 class="hero-title">Find your next <em>adventure</em></h1>
             <p class="hero-subtitle">
               Curated opportunities from real companies — skip the noise, discover roles that actually fit.
             </p>
@@ -119,33 +134,18 @@
               <button class="quick-filter" type="button" data-filter="hybrid">Hybrid</button>
               <button class="quick-filter" type="button" data-filter="onsite">On-site</button>
             </div>
-
-            <div class="hero-stats">
-              <div class="hero-stat">
-                <span class="hero-stat-value" id="statJobs">—</span>
-                <span class="hero-stat-label">Open roles</span>
-              </div>
-              <div class="hero-stat">
-                <span class="hero-stat-value" id="statCompanies">—</span>
-                <span class="hero-stat-label">Companies</span>
-              </div>
-              <div class="hero-stat">
-                <span class="hero-stat-value">Daily</span>
-                <span class="hero-stat-label">Fresh listings</span>
-              </div>
-            </div>
           </div>
 
           <div class="hero-visual" aria-hidden="true">
             <div class="hero-image-stack">
               <div class="hero-img hero-img-main">
-                <img src="/images/hero-collab.jpg" alt="" width="800" height="1000" fetchpriority="high">
+                <img src="/images/hero-collab.jpg?v=15" alt="" width="800" height="1000" fetchpriority="high">
               </div>
               <div class="hero-img hero-img-secondary">
-                <img src="/images/hero-work.jpg" alt="" width="400" height="400" loading="lazy">
+                <img src="/images/hero-work.jpg?v=15" alt="" width="400" height="400" loading="lazy">
               </div>
               <div class="hero-img hero-img-tertiary">
-                <img src="/images/hero-office.jpg" alt="" width="400" height="300" loading="lazy">
+                <img src="/images/hero-office.jpg?v=15" alt="" width="400" height="300" loading="lazy">
               </div>
             </div>
 
@@ -163,6 +163,24 @@
                 <span>High-signal only</span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mood band -->
+    <section class="section" style="padding-top: 0; padding-bottom: 1rem;">
+      <div class="container">
+        <div class="mood-band">
+          <div class="mood-band-copy">
+            <h2>Your next chapter starts with one great opportunity</h2>
+            <p>Save roles you love, set smart alerts, and apply when you’re ready — we’ll keep the pipeline warm.</p>
+            <div style="margin-top:0.5rem">
+              <a href="/register" class="btn btn-primary">Create free account</a>
+            </div>
+          </div>
+          <div class="mood-band-media">
+            <img src="/images/hero-office.jpg?v=15" alt="" width="600" height="400" loading="lazy">
           </div>
         </div>
       </div>
@@ -226,24 +244,6 @@
       </div>
     </section>
 
-    <!-- Mood band -->
-    <section class="section" style="padding-top: 0; padding-bottom: 1rem;">
-      <div class="container">
-        <div class="mood-band">
-          <div class="mood-band-copy">
-            <h2>Your next chapter starts with one great opportunity</h2>
-            <p>Save roles you love, set smart alerts, and apply when you’re ready — we’ll keep the pipeline warm.</p>
-            <div style="margin-top:0.5rem">
-              <a href="/register" class="btn btn-primary">Create free account</a>
-            </div>
-          </div>
-          <div class="mood-band-media">
-            <img src="/images/hero-work.jpg" alt="" width="600" height="400" loading="lazy">
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- Main explore -->
     <section class="section section-gray" id="exploreSection">
       <div class="container">
@@ -254,7 +254,7 @@
           </div>
         </div>
 
-        <div class="jobs-layout">
+        <div class="jobs-layout" id="jobs-layout">
           <aside class="filters-sidebar" id="filtersSidebar" aria-label="Filters">
             <div class="filters-header">
               <h3>Refine</h3>
@@ -451,6 +451,6 @@
     </div>
   </nav>
 
-  <script src="/js/main.js"></script>
+  <script src="/js/main.js?v=10"></script>
 </body>
 </html>

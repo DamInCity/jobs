@@ -144,12 +144,9 @@ class LinkedInImporter extends BaseScraper {
       (Array.isArray(raw.locations_derived) && raw.locations_derived[0]) ||
       (Array.isArray(raw.cities_derived) && raw.cities_derived[0]) ||
       (Array.isArray(raw.countries_derived) && raw.countries_derived[0]) ||
-      'Remote';
+      '';
 
     const arrangement = String(raw.ai_work_arrangement || raw.location_type || '').toLowerCase();
-    let jobType = 'onsite';
-    if (arrangement.includes('remote') || arrangement === 'telecommute') jobType = 'remote';
-    else if (arrangement.includes('hybrid')) jobType = 'hybrid';
 
     const salaryPeriod = String(raw.ai_salary_unit_text || 'YEAR').toLowerCase();
     const periodMap = {
@@ -184,7 +181,7 @@ class LinkedInImporter extends BaseScraper {
       requirements: raw.ai_requirements_summary || null,
       benefits,
       location,
-      job_type: jobType,
+      work_arrangement: arrangement,
       category: mapCategory({
         title: raw.title,
         taxonomies: raw.ai_taxonomies_a || [],

@@ -1,13 +1,21 @@
 /* JobsHub service worker — offline shell + static asset cache */
-const CACHE_VERSION = 'jobshub-v5';
+const CACHE_VERSION = 'jobshub-v12';
 const PRECACHE = [
   '/',
   '/manifest.webmanifest',
-  '/css/main.css',
-  '/js/common.js',
-  '/js/main.js',
+  '/css/main.css?v=12',
+  '/js/common.js?v=8',
+  '/js/main.js?v=10',
+  '/icons/icon-72.png',
+  '/icons/icon-96.png',
+  '/icons/icon-128.png',
+  '/icons/icon-144.png',
+  '/icons/icon-152.png',
+  '/icons/icon-180.png',
   '/icons/icon-192.png',
+  '/icons/icon-384.png',
   '/icons/icon-512.png',
+  '/icons/icon-maskable-512.png',
   '/login',
   '/register',
   '/categories',
@@ -68,6 +76,22 @@ self.addEventListener('fetch', (event) => {
         .catch(() =>
           caches.match(request).then((cached) => cached || caches.match('/') || caches.match('/login'))
         )
+    );
+    return;
+  }
+
+  // CSS/JS: network-first so modal/layout fixes reach phones (cache-first hid v5).
+  if (url.pathname.endsWith('.css') || url.pathname.endsWith('.js')) {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          if (res && res.status === 200) {
+            const copy = res.clone();
+            caches.open(CACHE_VERSION).then((c) => c.put(request, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }

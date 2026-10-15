@@ -4,7 +4,7 @@
  */
 
 const { saveJobRecord } = require('../db/saveJobRecord');
-const { preprocessJob } = require('./preprocessJob');
+const { preprocessJob, normalizeJobType } = require('./preprocessJob');
 
 class BaseScraper {
   constructor(name, baseUrl) {
@@ -217,12 +217,8 @@ class BaseScraper {
   /**
    * Helper: Determine job type from text
    */
-  parseJobType(text) {
-    if (!text) return 'onsite';
-    const lower = text.toLowerCase();
-    if (lower.includes('remote')) return 'remote';
-    if (lower.includes('hybrid')) return 'hybrid';
-    return 'onsite';
+  parseJobType(text, extra = {}) {
+    return normalizeJobType(text, extra);
   }
 
   /**

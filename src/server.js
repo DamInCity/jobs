@@ -61,6 +61,7 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === '/telegram/webhook',
 });
 app.use('/api/', limiter);
 
@@ -106,6 +107,17 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ingest', ingestRoutes);
 
+app.post('/api/telegram/webhook', (req, res) => {
+  const telegramBot = require('./jobs/telegramBot');
+  if (!telegramBot.verifyWebhookRequest(req)) {
+    return res.sendStatus(401);
+  }
+  res.sendStatus(200);
+  telegramBot.handleUpdate(req.body).catch((error) => {
+    console.error('Telegram webhook update failed:', error.message);
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -134,6 +146,106 @@ app.get('/api/health/supply', async (req, res) => {
 });
 
 // ============================================
+// SEO ROUTES
+// ============================================
+
+// Dynamic sitemap.xml
+app.get('/sitemap.xml', async (req, res) => {
+  const db = require('./db');
+  const origin = config.app.url || 'https://jobshub.co.ke';
+  res.type('application/xml');
+
+  try {
+    // Get all active jobs
+    const jobs = await db.query(`
+      SELECT slug, updated_at, posted_date
+      FROM jobs
+      WHERE expiry_date > NOW() AND (slug IS NOT NULL AND slug <> '')
+      ORDER BY posted_date DESC
+      LIMIT 50000
+    `);
+
+    // Get all categories
+    const categories = await db.query(`
+      SELECT slug, updated_at FROM categories ORDER BY name
+    `);
+
+    const urls = [
+      // Static pages
+      { loc: '/', priority: '1.0', changefreq: 'hourly' },
+      { loc: '/categories', priority: '0.8', changefreq: 'daily' },
+      { loc: '/alerts', priority: '0.6', changefreq: 'weekly' },
+      { loc: '/about', priority: '0.5', changefreq: 'monthly' },
+      { loc: '/login', priority: '0.3', changefreq: 'monthly' },
+      { loc: '/register', priority: '0.3', changefreq: 'monthly' },
+
+      // Category pages
+      ...categories.rows.map((c) => ({
+        loc: `/categories/${c.slug}`,
+        priority: '0.7',
+        changefreq: 'daily',
+      })),
+
+      // Job pages (every active job gets its own URL)
+      ...jobs.rows.map((j) => ({
+        loc: `/jobs/${j.slug}`,
+        priority: '0.9',
+        changefreq: 'daily',
+        lastmod: (j.updated_at || j.posted_date)?.toISOString(),
+      })),
+
+      // Kenya pages
+      { loc: '/kenya', priority: '0.9', changefreq: 'daily' },
+      ...['nairobi', 'mombasa', 'kisumu', 'nakuru', 'eldoret', 'thika', 'malindi', 'kilifi', 'nanyuki', 'naivasha', 'kakamega', 'meru', 'nyeri', 'kisii', 'kericho', 'nandi', 'machakos', 'kiambu', 'muranga', 'embu', 'isiolo', 'baringo', 'bomet', 'bungoma', 'busia', 'elgeyo-marakwet', 'garissa', 'homa-bay', 'kajiado', 'kitui', 'kwale', 'laikipia', 'lamu', 'makueni', 'mandera', 'marsabit', 'migori', 'moyale', 'narok', 'nyamira', 'nyandarua', 'samburu', 'siaya', 'taita-taveta', 'tana-river', 'tharaka-nithi', 'trans-nzoia', 'turkana', 'uasin-gishu', 'vihiga', 'wajir', 'west-pokot'].map((c) => ({
+        loc: `/kenya/${c}`,
+        priority: '0.7',
+        changefreq: 'daily',
+      })),
+
+      // Category pages
+      ...categories.rows.map((c) => ({
+        loc: `/categories/${c.slug}`,
+        priority: '0.7',
+        changefreq: 'daily',
+      })),
+    ];
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls
+  .map((u) => `  <url>
+    <loc>${origin}${u.loc}</loc>
+    <priority>${u.priority}</priority>
+    <changefreq>${u.changefreq}</changefreq>
+    ${u.lastmod ? `    <lastmod>${u.lastmod}</lastmod>` : ''}
+  </url>`)
+  .join('\n')}
+</urlset>`;
+    res.send(xml);
+  } catch (error) {
+    console.error('Sitemap generation failed:', error.message);
+    res.status(500).type('text').send('Sitemap generation failed');
+  }
+});
+
+// robots.txt
+app.get('/robots.txt', (req, res) => {
+  const origin = config.app.url || 'https://jobshub.co.ke';
+  res.type('text/plain');
+  res.send(`User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Sitemap: ${origin}/sitemap.xml
+`);
+});
+
+// ============================================
 // FRONTEND PAGE ROUTES
 // ============================================
 
@@ -151,7 +263,22 @@ const pageRoutes = {
   '/job-alerts': 'alerts.html',
   '/profile': 'profile.html',
   '/account': 'profile.html',
+  '/kenya': 'kenya.html',
 };
+
+// Kenya county landing pages — all serve the same kenya.html (JS handles dynamic content)
+const kenyaCounties = ['nairobi', 'mombasa', 'kisumu', 'nakuru', 'eldoret', 'thika', 'malindi', 'kilifi', 'nanyuki', 'naivasha', 'kakamega', 'meru', 'nyeri', 'kisii', 'kericho', 'nandi', 'machakos', 'kiambu', 'muranga', 'embu', 'isiolo', 'baringo', 'bomet', 'bungoma', 'busia', 'elgeyo-marakwet', 'garissa', 'homa-bay', 'kajiado', 'kitui', 'kwale', 'laikipia', 'lamu', 'makueni', 'mandera', 'marsabit', 'migori', 'moyale', 'narok', 'nyamira', 'nyandarua', 'samburu', 'siaya', 'taita-taveta', 'tana-river', 'tharaka-nithi', 'trans-nzoia', 'turkana', 'uasin-gishu', 'vihiga', 'wajir', 'west-pokot'];
+
+kenyaCounties.forEach((county) => {
+  app.get(`/kenya/${county}`, (req, res) => {
+    res.sendFile(path.join(publicDir, 'kenya.html'));
+  });
+});
+
+// Category landing pages for SEO
+app.get('/categories/:slug', (req, res) => {
+  res.sendFile(path.join(publicDir, 'categories.html'));
+});
 
 // PWA service worker — no long cache on the SW script itself
 app.get('/sw.js', (req, res) => {
@@ -186,6 +313,10 @@ app.get('*', (req, res, next) => {
   // Don't rewrite real static assets
   if (path.extname(req.path)) {
     return next();
+  }
+  // Job detail pages — serve the SPA (JS handles content via modal)
+  if (req.path.startsWith('/jobs/')) {
+    return res.sendFile(path.join(publicDir, 'index.html'));
   }
   res.sendFile(path.join(publicDir, 'index.html'));
 });
@@ -251,6 +382,12 @@ async function runExpiryMaintenanceSafe(label = 'startup') {
 async function start() {
   await bootstrapSchema();
   await runExpiryMaintenanceSafe('startup');
+  try {
+    const telegramBot = require('./jobs/telegramBot');
+    await telegramBot.registerWebhook();
+  } catch (error) {
+    console.error('Telegram webhook register failed:', error.message);
+  }
 
   // Keep inventory honest even if the scraper container is down
   const maintenanceMs = parseInt(process.env.EXPIRY_MAINTENANCE_MS || String(6 * 60 * 60 * 1000), 10);

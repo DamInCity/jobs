@@ -253,10 +253,8 @@ function logout() {
 // ============================================
 
 function createJobCard(job) {
-  const jobTypeClass = job.job_type || 'onsite';
   const logoPlaceholder = escapeHtml((job.company_name || '?').charAt(0).toUpperCase());
   const hue = logoHue(job.company_name);
-  const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency, job.salary_period);
   const title = escapeHtml(job.title);
   const company = escapeHtml(job.company_name);
   const locParts = [job.county, job.location].filter(Boolean);
@@ -264,14 +262,13 @@ function createJobCard(job) {
   const location = escapeHtml(uniqueLoc);
   const category = job.category_name ? escapeHtml(job.category_name) : '';
   const isSaved = state.savedIds.has(String(job.id));
-  const sourceBadge = verificationBadge(job);
 
   const logoHtml = job.company_logo_url
     ? `<img src="${escapeHtml(job.company_logo_url)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'job-logo-placeholder hue-${hue}',textContent:'${logoPlaceholder}'}))">`
     : `<span class="job-logo-placeholder hue-${hue}">${logoPlaceholder}</span>`;
 
   return `
-    <article class="job-card ${job.is_featured ? 'featured' : ''}" data-job-id="${escapeHtml(job.id)}" tabindex="0" role="button" aria-label="${title} at ${company}">
+    <article class="job-card ${job.is_featured ? 'featured' : ''}" data-job-id="${escapeHtml(job.id)}" data-job-slug="${escapeHtml(job.slug || '')}" tabindex="0" role="button" aria-label="${title} at ${company}">
       <div class="job-card-header">
         <div class="job-logo">${logoHtml}</div>
         <div class="job-info">
@@ -298,24 +295,13 @@ function createJobCard(job) {
           </span>
         ` : ''}
       </div>
-
-      <div class="job-tags">
-        <span class="job-tag ${jobTypeClass}">${getJobTypeLabel(job.job_type)}</span>
-        ${sourceBadge}
-        ${job.is_featured ? '<span class="job-tag featured">Featured</span>' : ''}
-        ${job.is_new ? '<span class="job-tag new">New</span>' : ''}
-        ${job.expiring_soon ? '<span class="job-tag expiring">Closing soon</span>' : ''}
-      </div>
-
-      <div class="job-footer">
-        <span class="job-salary ${salary ? '' : 'is-unspecified'}">${salary || 'Salary on request'}</span>
-        <span class="job-posted">${formatDate(job.posted_date)}</span>
-        <span class="job-card-cta">View role <i class="fas fa-arrow-right"></i></span>
-      </div>
     </article>
   `;
 }
 
+/**
+ * Skeleton loading cards for job list placeholders
+ */
 function skeletonCards(count = 6) {
   return Array.from({ length: count }, () => `
     <div class="job-card-skeleton" aria-hidden="true">
@@ -332,6 +318,12 @@ function skeletonCards(count = 6) {
   `).join('');
 }
 
+/**
+ * Render job cards in the listings container
+ * @param {Array} jobs - Array of job objects
+ * @param {string} containerId - Container element ID
+ * @param {object} options - Rendering options
+ */
 function renderJobs(jobs, containerId = 'jobsList') {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -342,11 +334,9 @@ function renderJobs(jobs, containerId = 'jobsList') {
       <div class="empty-state">
         <div class="empty-state-icon"><i class="fas fa-compass"></i></div>
         <h3>${cat ? 'No open roles in this category' : 'Nothing perfect yet'}</h3>
-        <p>${
-          cat
+        <p>${cat
             ? 'This field has 0 matching jobs right now. Try another category or browse everything.'
-            : 'Try widening your search — your next opportunity might be one filter away.'
-        }</p>
+            : 'Try widening your search — your next opportunity might be one filter away.'}</p>
         <button type="button" class="btn btn-primary" id="emptyClearBtn">${cat ? 'Browse all jobs' : 'Reset filters'}</button>
       </div>
     `;
@@ -354,13 +344,13 @@ function renderJobs(jobs, containerId = 'jobsList') {
     return;
   }
 
-  container.innerHTML = jobs.map((job) => createJobCard(job)).join('');
+  container.innerHTML = jobs.map(createJobCard).join('');
   bindJobCardEvents(container);
 }
 
 function bindJobCardEvents(container) {
   container.querySelectorAll('.job-card').forEach((card) => {
-    const open = () => openJobModal(card.dataset.jobId);
+    const open = () => openJobModal(card.dataset.jobSlug || card.dataset.jobId);
     card.addEventListener('click', (e) => {
       if (e.target.closest('[data-save-job]')) return;
       open();
@@ -589,7 +579,7 @@ async function loadCategories() {
           };
           const icon = iconMap[cat.icon] || 'fa-folder';
           return `
-            <a href="/?category=${encodeURIComponent(cat.slug)}#exploreSection" class="discovery-chip" data-category="${escapeHtml(cat.slug)}">
+            <a href="/?category=${encodeURIComponent(cat.slug)}#jobs-layout" class="discovery-chip" data-category="${escapeHtml(cat.slug)}">
               <span class="discovery-chip-icon"><i class="fas ${icon}"></i></span>
               ${escapeHtml(cat.name)}
             </a>
@@ -636,11 +626,34 @@ async function loadCategories() {
 
 const HEADING_LEVEL = { H1: 1, H2: 2, H3: 3, H4: 4 };
 
-function sectionSummary(icon, title) {
+function sectionSummary(icon, title, infoText) {
+  const tip = infoText
+    ? `<span class="job-detail-info-tip" tabindex="0" role="button" aria-label="Safety note">
+         <i class="fas fa-circle-info" aria-hidden="true"></i>
+         <span class="job-detail-info-tip-text">${escapeHtml(infoText)}</span>
+       </span>`
+    : '';
   return `<summary class="job-detail-summary">
-    <span class="job-detail-summary-label"><i class="fas ${icon}"></i> ${title}</span>
+    <span class="job-detail-summary-label"><i class="fas ${icon}"></i> ${title}${tip}</span>
     <i class="fas fa-chevron-down job-detail-chevron" aria-hidden="true"></i>
   </summary>`;
+}
+
+const RECRUITMENT_WARNING =
+  'Never pay for any notarisation, certificate or assessment as part of any recruitment process. When in doubt, contact us.';
+
+function pullRecruitmentWarning(root) {
+  if (!root) return '';
+  let text = '';
+  root.querySelectorAll('p, div, span').forEach((el) => {
+    const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    const style = (el.getAttribute('style') || '').toLowerCase();
+    if (/never pay for any notar/i.test(t) || (style.includes('orangered') && /pay|recruitment|certificate/i.test(t))) {
+      if (!text) text = t.replace(/\s+/g, ' ').trim();
+      el.remove();
+    }
+  });
+  return text;
 }
 
 function foldDescriptionHeadings(root) {
@@ -698,7 +711,10 @@ function safeExternalJobUrl(externalLink) {
 function isEmployerHttpUrl(url) {
   try {
     const u = new URL(String(url || ''));
-    return (u.protocol === 'http:' || u.protocol === 'https:') && !/myjobmag/i.test(u.hostname);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+    if (/myjobmag/i.test(u.hostname)) return false;
+    if (/^(accounts\.google\.com|login\.microsoftonline\.com|login\.live\.com)$/i.test(u.hostname)) return false;
+    return true;
   } catch {
     return false;
   }
@@ -796,7 +812,43 @@ function handleJobContentLinkClick(event) {
   window.open(resolved, '_blank', 'noopener,noreferrer');
 }
 
-async function openJobModal(jobId) {
+function jobIdentifierFromLocation() {
+  const pathMatch = window.location.pathname.match(/^\/jobs\/([^/]+)\/?$/);
+  if (pathMatch) return decodeURIComponent(pathMatch[1]);
+  return new URLSearchParams(window.location.search).get('job') || null;
+}
+
+function listingPathFromState() {
+  const params = new URLSearchParams();
+  if (state.filters.search) params.set('q', state.filters.search);
+  if (state.filters.location) params.set('location', state.filters.location);
+  if (state.filters.category) params.set('category', state.filters.category);
+  if (state.filters.job_type.length) params.set('type', state.filters.job_type.join(','));
+  if (state.filters.posted_after) params.set('posted', state.filters.posted_after);
+  if (state.filters.county) params.set('county', state.filters.county);
+  if (state.filters.source_type) params.set('source_type', state.filters.source_type);
+  if (state.filters.kenya_only) params.set('kenya', '1');
+  if (state.currentPage > 1) params.set('page', state.currentPage);
+  const qs = params.toString();
+  return qs ? `/?${qs}` : '/';
+}
+
+function syncJobUrl(job, { replace = false } = {}) {
+  const slug = job?.slug || job?.id;
+  if (!slug) return;
+  const next = `/jobs/${encodeURIComponent(slug)}`;
+  if (window.location.pathname === next) return;
+  const fn = replace ? 'replaceState' : 'pushState';
+  history[fn]({ jobModal: true, jobId: job.id, slug }, '', next);
+}
+
+async function openJobFromRoute() {
+  const identifier = jobIdentifierFromLocation();
+  if (!identifier) return;
+  await openJobModal(identifier, { fromRoute: true });
+}
+
+async function openJobModal(jobId, options = {}) {
   const modal = document.getElementById('jobModal');
   const jobDetail = document.getElementById('jobDetail');
   if (!modal || !jobDetail) return;
@@ -806,10 +858,11 @@ async function openJobModal(jobId) {
   jobDetail.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
   try {
-    api(`/jobs/${jobId}/view`, { method: 'POST' }).catch(() => {});
-
-    const response = await api(`/jobs/${jobId}`);
+    const response = await api(`/jobs/${encodeURIComponent(jobId)}`);
     const job = response.data.job || response.data;
+    api(`/jobs/${job.id}/view`, { method: 'POST' }).catch(() => {});
+    if (!options.fromRoute) syncJobUrl(job);
+    else syncJobUrl(job, { replace: true });
     const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency, job.salary_period);
     const applyHttp = isEmployerHttpUrl(job.application_url) ? job.application_url : null;
     const applyEmail = applyMailto(job.application_url);
@@ -828,6 +881,43 @@ async function openJobModal(jobId) {
         </div>
       </div>
 
+      <!-- JSON-LD Structured Data for SEO -->
+      <script type="application/ld+json">
+      ${JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "JobPosting",
+        "title": job.title,
+        "description": (job.description || '').replace(/<[^>]*>/g, '').slice(0, 5000),
+        "datePosted": job.posted_date,
+        "validThrough": job.expiry_date,
+        "hiringOrganization": {
+          "@type": "Organization",
+          "name": job.company_name
+        },
+        "jobLocation": {
+          "@type": "Place",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": job.location || 'Flexible',
+            "addressCountry": job.country_code || 'KE'
+          }
+        },
+        "employmentType": job.job_type ? job.job_type.charAt(0).toUpperCase() + job.job_type.slice(1) : undefined,
+        "baseSalary": (job.salary_min || job.salary_max) ? {
+          "@type": "MonetaryAmount",
+          "currency": job.salary_currency || 'KES',
+          "value": {
+            "@type": "QuantitativeValue",
+            "minValue": job.salary_min,
+            "maxValue": job.salary_max,
+            "unitText": job.salary_period ? job.salary_period.charAt(0).toUpperCase() + job.salary_period.slice(1) : 'MONTH'
+          }
+        } : undefined,
+        "url": `${window.location.origin}/jobs/${job.slug || job.id}`,
+        "identifier": { "@type": "PropertyValue", "name": job.id, "value": job.id }
+      }, null, 2)}
+      }</script>
+
       ${salary ? `
         <details class="job-detail-section" open>
           ${sectionSummary('fa-coins', 'Compensation')}
@@ -838,7 +928,7 @@ async function openJobModal(jobId) {
       ` : ''}
 
       <details class="job-detail-section" open>
-        ${sectionSummary('fa-align-left', 'About the role')}
+        ${sectionSummary('fa-align-left', 'About the role', RECRUITMENT_WARNING)}
         <div class="job-detail-content" data-fold="1">${job.description || ''}</div>
       </details>
 
@@ -885,8 +975,20 @@ async function openJobModal(jobId) {
 
     jobDetail.querySelectorAll('.job-detail-content[data-fold="1"]').forEach((el) => {
       foldDescriptionHeadings(el);
+      const extracted = pullRecruitmentWarning(el);
+      const tipText = el.closest('.job-detail-section')?.querySelector('.job-detail-info-tip-text');
+      if (extracted && tipText) tipText.textContent = extracted;
       stripBoardChrome(el);
       rewriteJobContentLinks(el);
+    });
+    jobDetail.querySelectorAll('.job-detail-info-tip').forEach((tip) => {
+      tip.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const willOpen = !tip.classList.contains('is-open');
+        closeJobInfoTips(tip);
+        tip.classList.toggle('is-open', willOpen);
+      });
     });
 
     jobDetail.querySelector('[data-modal-save]')?.addEventListener('click', (e) => {
@@ -908,10 +1010,27 @@ async function openJobModal(jobId) {
   }
 }
 
-function closeJobModal() {
+function closeJobInfoTips(except) {
+  document.querySelectorAll('.job-detail-info-tip.is-open').forEach((el) => {
+    if (el !== except) el.classList.remove('is-open');
+  });
+}
+
+function closeJobModal(options = {}) {
   const modal = document.getElementById('jobModal');
   modal?.classList.remove('show');
   document.body.style.overflow = '';
+  closeJobInfoTips();
+
+  if (options.skipHistory) return;
+  if (!/^\/jobs\//.test(window.location.pathname) && !new URLSearchParams(window.location.search).get('job')) {
+    return;
+  }
+  if (history.state?.jobModal && window.history.length > 1) {
+    history.back();
+    return;
+  }
+  history.replaceState(null, '', listingPathFromState());
 }
 
 async function saveJob(jobId, btnEl) {
@@ -1076,19 +1195,9 @@ function handleSort(sortValue) {
 }
 
 function updateURL() {
-  const params = new URLSearchParams();
-
-  if (state.filters.search) params.set('q', state.filters.search);
-  if (state.filters.location) params.set('location', state.filters.location);
-  if (state.filters.category) params.set('category', state.filters.category);
-  if (state.filters.job_type.length) params.set('type', state.filters.job_type.join(','));
-  if (state.filters.posted_after) params.set('posted', state.filters.posted_after);
-  if (state.filters.county) params.set('county', state.filters.county);
-  if (state.filters.source_type) params.set('source_type', state.filters.source_type);
-  if (state.filters.kenya_only) params.set('kenya', '1');
-  if (state.currentPage > 1) params.set('page', state.currentPage);
-
-  const newURL = params.toString() ? `?${params.toString()}` : window.location.pathname;
+  const newURL = listingPathFromState();
+  const current = `${window.location.pathname}${window.location.search}`;
+  if (current === newURL) return;
   history.pushState(null, '', newURL);
 }
 
@@ -1358,8 +1467,14 @@ function initEventListeners() {
   document.getElementById('modalOverlay')?.addEventListener('click', closeJobModal);
   document.getElementById('modalClose')?.addEventListener('click', closeJobModal);
   document.getElementById('jobDetail')?.addEventListener('click', handleJobContentLinkClick);
+  document.getElementById('jobDetail')?.addEventListener('scroll', () => closeJobInfoTips(), { passive: true });
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.job-detail-info-tip')) return;
+    closeJobInfoTips();
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      closeJobInfoTips();
       closeJobModal();
       closeFiltersSheet();
     }
@@ -1373,6 +1488,12 @@ function initEventListeners() {
   }
 
   window.addEventListener('popstate', () => {
+    const jobId = jobIdentifierFromLocation();
+    if (jobId) {
+      openJobModal(jobId, { fromRoute: true });
+      return;
+    }
+    closeJobModal({ skipHistory: true });
     loadFromURL();
     loadJobs();
   });
@@ -1550,13 +1671,24 @@ async function init() {
   initHeroRotator();
   initEventListeners();
   loadFromURL();
+  scrollToJobsLayoutIfNeeded();
   await checkAuth();
 
   await Promise.all([loadFeaturedJobs(), loadJobs(), loadCategories(), loadFacets()]);
 
-  if (window.location.hash === '#exploreSection') {
-    document.getElementById('exploreSection')?.scrollIntoView({ behavior: 'smooth' });
-  }
+  scrollToJobsLayoutIfNeeded();
+  await openJobFromRoute();
+}
+
+function scrollToJobsLayoutIfNeeded() {
+  const params = new URLSearchParams(window.location.search);
+  const hash = window.location.hash;
+  const skipHero = Boolean(params.get('category'))
+    || hash === '#jobs-layout'
+    || hash === '#exploreSection';
+  if (!skipHero) return;
+  const target = document.getElementById('jobs-layout') || document.getElementById('exploreSection');
+  target?.scrollIntoView({ behavior: 'auto', block: 'start' });
 }
 
 if (document.readyState === 'loading') {

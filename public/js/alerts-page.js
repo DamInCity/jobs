@@ -599,6 +599,9 @@ async function initAlertsPage() {
 
   if (new URLSearchParams(window.location.search).get('onboarding') === '1') {
     document.getElementById('onboardingBanner')?.removeAttribute('hidden');
+    if (typeof startSetupWizard === 'function') {
+      startSetupWizard({ profile: state.user, force: true });
+    }
   }
 
   await loadCategories();

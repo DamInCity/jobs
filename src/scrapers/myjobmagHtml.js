@@ -4,6 +4,7 @@
  */
 
 const BOARD_HOST_RE = /myjobmag/i;
+const LOGIN_HOST_RE = /^(accounts\.google\.com|login\.microsoftonline\.com|login\.live\.com|facebook\.com|www\.facebook\.com)$/i;
 const EXCLUDED_PATHS = [
   /^\/cv\b/i,
   /^\/cv-match/i,
@@ -167,9 +168,50 @@ function sanitizeListingHtml(html, cheerio, baseUrl) {
 function isEmployerHttpUrl(url) {
   try {
     const u = new URL(String(url));
-    return (u.protocol === 'http:' || u.protocol === 'https:') && !isBoardHost(u.hostname);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+    if (isBoardHost(u.hostname)) return false;
+    if (LOGIN_HOST_RE.test(u.hostname)) return false;
+    return true;
   } catch {
     return false;
+  }
+}
+
+function stripTrackingParams(url) {
+  try {
+    const u = new URL(url);
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach((k) => u.searchParams.delete(k));
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Follow only the first 302/301 Location from a MyJobMag /apply-now/ wrapper.
+ * Do not follow Google login hops — those replace the real form URL.
+ */
+async function resolveApplyNowFirstHop(url, { timeoutMs = 10000 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
+      },
+    });
+    await response.arrayBuffer().catch(() => {});
+    const loc = response.headers.get('location');
+    if (!loc) return null;
+    const dest = stripTrackingParams(new URL(loc, url).toString());
+    return isEmployerHttpUrl(dest) ? dest : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -178,5 +220,7 @@ module.exports = {
   sanitizeListingHtml,
   isEmployerHttpUrl,
   isBoardHost,
+  resolveApplyNowFirstHop,
+  stripTrackingParams,
   EMAIL_RE,
 };

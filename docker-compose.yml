@@ -42,8 +42,8 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@jobswebsite.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changethispassword}
-      APP_URL: ${APP_URL:-https://jobs.usseo.one}
-      FRONTEND_URL: ${FRONTEND_URL:-https://jobs.usseo.one}
+      APP_URL: ${APP_URL:-https://jobshub.co.ke}
+      FRONTEND_URL: ${FRONTEND_URL:-https://jobshub.co.ke}
       RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
       RAPIDAPI_MAX_REQUESTS_PER_RUN: ${RAPIDAPI_MAX_REQUESTS_PER_RUN:-80}
       INGEST_MAX_JOBS_PER_SOURCE: ${INGEST_MAX_JOBS_PER_SOURCE:-400}
@@ -102,8 +102,8 @@ services:
       DB_NAME: ${DB_NAME:-jobs_website}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      APP_URL: ${APP_URL:-https://jobs.usseo.one}
-      FRONTEND_URL: ${FRONTEND_URL:-https://jobs.usseo.one}
+      APP_URL: ${APP_URL:-https://jobshub.co.ke}
+      FRONTEND_URL: ${FRONTEND_URL:-https://jobshub.co.ke}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       ALERT_LOOKBACK_DAYS: ${ALERT_LOOKBACK_DAYS:-30}
@@ -141,8 +141,8 @@ services:
       DB_NAME: ${DB_NAME:-jobs_website}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      APP_URL: ${APP_URL:-https://jobs.usseo.one}
-      FRONTEND_URL: ${FRONTEND_URL:-https://jobs.usseo.one}
+      APP_URL: ${APP_URL:-https://jobshub.co.ke}
+      FRONTEND_URL: ${FRONTEND_URL:-https://jobshub.co.ke}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
@@ -181,8 +181,8 @@ services:
       DB_NAME: ${DB_NAME:-jobs_website}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      APP_URL: ${APP_URL:-https://jobs.usseo.one}
-      FRONTEND_URL: ${FRONTEND_URL:-https://jobs.usseo.one}
+      APP_URL: ${APP_URL:-https://jobshub.co.ke}
+      FRONTEND_URL: ${FRONTEND_URL:-https://jobshub.co.ke}
       JOBS_FOCUS: ${JOBS_FOCUS:-kenya}
       DISABLE_KENYA_CAREERS: ${DISABLE_KENYA_CAREERS:-false}
       ENABLE_HTML_SCRAPERS: ${ENABLE_HTML_SCRAPERS:-false}
@@ -228,8 +228,8 @@ services:
       DB_NAME: ${DB_NAME:-jobs_website}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      APP_URL: ${APP_URL:-https://jobs.usseo.one}
-      FRONTEND_URL: ${FRONTEND_URL:-https://jobs.usseo.one}
+      APP_URL: ${APP_URL:-https://jobshub.co.ke}
+      FRONTEND_URL: ${FRONTEND_URL:-https://jobshub.co.ke}
       SUPPLY_MIN_ACTIVE: ${SUPPLY_MIN_ACTIVE:-30}
       SUPPLY_MAX_STALE_HOURS: ${SUPPLY_MAX_STALE_HOURS:-36}
       SUPPLY_MIN_CATEGORIES: ${SUPPLY_MIN_CATEGORIES:-5}
@@ -296,7 +296,7 @@ services:
       WEBHOOK_URL: ${N8N_WEBHOOK_PUBLIC_URL:-http://127.0.0.1:5678/}
       GENERIC_TIMEZONE: Africa/Nairobi
       TZ: Africa/Nairobi
-      JOBSHUB_URL: ${JOBSHUB_URL:-https://jobs.usseo.one}
+      JOBSHUB_URL: ${JOBSHUB_URL:-https://jobshub.co.ke}
       JOBSHUB_INGEST_KEY: ${JOBSHUB_INGEST_KEY:-}
       # Basic auth for UI (change in .env)
       N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE:-true}

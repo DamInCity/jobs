@@ -88,7 +88,7 @@ async function saveJobRecord(rawJob, options = {}) {
         job.description || '',
         job.requirements || null,
         job.benefits || null,
-        job.location || 'Remote',
+        job.location || 'Not specified',
         job.county || null,
         job.country_code || null,
         job.job_type || 'onsite',

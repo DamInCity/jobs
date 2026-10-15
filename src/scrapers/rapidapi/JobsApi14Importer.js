@@ -219,7 +219,7 @@ class JobsApi14Importer extends BaseScraper {
       raw.job_location ||
       [raw.city, raw.state, raw.country].filter(Boolean).join(', ') ||
       queryObj.location ||
-      'Remote';
+      '';
 
     // LinkedIn list endpoint is often summary-only — still usable as a listing
     const description =
@@ -244,9 +244,8 @@ class JobsApi14Importer extends BaseScraper {
       requirements: raw.requirements || null,
       benefits: raw.benefits || null,
       location,
-      job_type: this.parseJobType(
-        `${raw.employmentType || ''} ${raw.jobType || ''} ${location} ${title}`
-      ),
+      employment_type: raw.employmentType || '',
+      work_arrangement: raw.jobType || raw.workplaceType || '',
       category: mapCategory({
         title,
         explicit: raw._categoryHint || raw.categoryHint,

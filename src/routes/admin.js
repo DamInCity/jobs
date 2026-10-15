@@ -64,6 +64,24 @@ router.get('/me', authenticate, requireAdmin, asyncHandler(async (req, res) => {
   });
 }));
 
+// Change the signed-in administrator's password. No default or demo password is accepted.
+router.post('/change-password', authenticate, requireAdmin, asyncHandler(async (req, res) => {
+  const { current_password: currentPassword, new_password: newPassword } = req.body || {};
+  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+    throw new AppError('Current password and new password are required', 400);
+  }
+  if (newPassword.length < 8 || newPassword.length > 200) {
+    throw new AppError('New password must be between 8 and 200 characters', 400);
+  }
+  const result = await db.query('SELECT password_hash FROM users WHERE id = $1 AND role = $2', [req.user.id, 'admin']);
+  if (result.rows.length === 0 || !(await bcrypt.compare(currentPassword, result.rows[0].password_hash))) {
+    throw new AppError('Current password is incorrect', 400);
+  }
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await db.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, req.user.id]);
+  res.json({ success: true, message: 'Password updated successfully' });
+}));
+
 // ============================================
 // DASHBOARD STATS
 // ============================================

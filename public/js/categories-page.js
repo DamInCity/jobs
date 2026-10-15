@@ -69,7 +69,7 @@ async function loadCategoriesPage(includeEmpty = false) {
         `;
           }
           return `
-          <a href="/?category=${encodeURIComponent(cat.slug)}" class="category-card">
+          <a href="/?category=${encodeURIComponent(cat.slug)}#jobs-layout" class="category-card">
             <div class="category-card-icon">
               <i class="fas ${icon}"></i>
             </div>

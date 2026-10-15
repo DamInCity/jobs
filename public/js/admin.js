@@ -141,6 +141,7 @@ function navigate(page) {
     jobs: 'Jobs Management',
     categories: 'Categories',
     users: 'Users',
+    'admin-access': 'Admin Access',
   };
   document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
 
@@ -149,6 +150,7 @@ function navigate(page) {
   document.getElementById('jobsView').classList.toggle('hidden', page !== 'jobs');
   document.getElementById('categoriesView').classList.toggle('hidden', page !== 'categories');
   document.getElementById('usersView').classList.toggle('hidden', page !== 'users');
+  document.getElementById('adminAccessView').classList.toggle('hidden', page !== 'admin-access');
 
   // Load data
   switch (page) {
@@ -164,10 +166,69 @@ function navigate(page) {
     case 'users':
       loadUsers();
       break;
+    case 'admin-access':
+      loadAdmins();
+      break;
   }
 
   // Update URL
   history.pushState(null, '', `/admin${page !== 'dashboard' ? '/' + page : ''}`);
+}
+
+async function loadAdmins() {
+  const tbody = document.getElementById('adminsTableBody');
+  try {
+    const response = await api('/admin/users?role=admin&limit=100');
+    const admins = response.data.users || [];
+    tbody.innerHTML = admins.length ? admins.map((admin) => `
+      <tr><td>${escapeHtml(admin.name || '—')}</td><td>${escapeHtml(admin.email)}</td>
+      <td>${admin.last_login ? formatDate(admin.last_login) : 'Never'}</td><td>${formatDate(admin.created_at)}</td></tr>
+    `).join('') : '<tr><td colspan="4">No administrators found.</td></tr>';
+  } catch (error) {
+    tbody.innerHTML = '<tr><td colspan="4">Could not load administrators.</td></tr>';
+    showNotification(error.message || 'Could not load administrators', 'error');
+  }
+}
+
+async function changeAdminPassword(e) {
+  e.preventDefault();
+  const currentPassword = document.getElementById('currentAdminPassword').value;
+  const newPassword = document.getElementById('newAdminPassword').value;
+  const confirmation = document.getElementById('confirmAdminPassword').value;
+  if (newPassword !== confirmation) {
+    showNotification('New passwords do not match', 'error');
+    return;
+  }
+  try {
+    await api('/admin/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    document.getElementById('adminPasswordForm').reset();
+    showNotification('Password updated successfully', 'success');
+  } catch (error) {
+    showNotification(error.message || 'Failed to update password', 'error');
+  }
+}
+
+async function createAdmin(e) {
+  e.preventDefault();
+  try {
+    await api('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: document.getElementById('newAdminName').value,
+        email: document.getElementById('newAdminEmail').value,
+        password: document.getElementById('newAdminTempPassword').value,
+        role: 'admin',
+      }),
+    });
+    document.getElementById('createAdminForm').reset();
+    showNotification('Administrator created successfully', 'success');
+    loadAdmins();
+  } catch (error) {
+    showNotification(error.message || 'Failed to create administrator', 'error');
+  }
 }
 
 // ============================================
@@ -300,6 +361,9 @@ async function loadJobs() {
             <td>${(job.view_count || 0).toLocaleString()}</td>
             <td>
               <div class="action-btns">
+                <button class="action-btn" onclick="exportJobImage('${job.id}')" title="Export mobile job image" aria-label="Export mobile job image">
+                  <i class="fas fa-image"></i>
+                </button>
                 <button class="action-btn" onclick="editJob('${job.id}')" title="Edit">
                   <i class="fas fa-edit"></i>
                 </button>
@@ -324,6 +388,78 @@ async function loadJobs() {
   } catch (error) {
     console.error('Failed to load jobs:', error);
     showNotification('Failed to load jobs', 'error');
+  }
+}
+
+async function exportJobImage(jobId) {
+  const modal = document.getElementById('posterExportModal');
+  const capture = document.getElementById('posterCapture');
+  const download = document.getElementById('downloadPosterBtn');
+  capture.innerHTML = '<div class="loading-cell">Loading job preview…</div>';
+  modal.classList.add('show');
+  modal.setAttribute('aria-hidden', 'false');
+  download.disabled = true;
+  download.dataset.jobTitle = '';
+
+  try {
+    const response = await api(`/admin/jobs/${encodeURIComponent(jobId)}`);
+    const job = response.data;
+    const location = job.location || 'Flexible';
+    capture.innerHTML = `
+      <div class="poster-export-content">
+        <div class="job-detail-header">
+          <div class="job-detail-info">
+            <h1>${escapeHtml(job.title)}</h1>
+            <p class="job-detail-company">${escapeHtml(job.company_name)}</p>
+            <div class="job-detail-meta">
+              <span class="job-meta-item"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(location)}</span>
+              <span class="job-meta-item"><i class="fas fa-briefcase"></i> ${escapeHtml(getJobTypeLabel(job.job_type))}</span>
+              ${job.category_name ? `<span class="job-meta-item"><i class="fas fa-layer-group"></i> ${escapeHtml(job.category_name)}</span>` : ''}
+              <span class="job-meta-item"><i class="fas fa-clock"></i> ${escapeHtml(formatDate(job.posted_date))}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    download.dataset.jobTitle = job.title || 'job-opportunity';
+    download.disabled = false;
+  } catch (error) {
+    capture.innerHTML = `<p class="alert alert-error">${escapeHtml(error.message || 'Could not load this job')}</p>`;
+  }
+}
+
+function closePosterExport() {
+  const modal = document.getElementById('posterExportModal');
+  modal.classList.remove('show');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+async function downloadPosterImage() {
+  const capture = document.getElementById('posterCapture');
+  const button = document.getElementById('downloadPosterBtn');
+  if (!window.html2canvas) {
+    showNotification('Image export library did not load. Refresh the page and try again.', 'error');
+    return;
+  }
+  button.disabled = true;
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+    const canvas = await window.html2canvas(capture, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+    const link = document.createElement('a');
+    const safeName = String(button.dataset.jobTitle || 'job-opportunity')
+      .normalize('NFKD').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+    link.download = `${safeName || 'job-opportunity'}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (error) {
+    showNotification(error.message || 'Could not create the PNG image', 'error');
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -1149,6 +1285,8 @@ function initEventListeners() {
     openUserModal();
   });
   document.getElementById('userForm')?.addEventListener('submit', saveUser);
+  document.getElementById('adminPasswordForm')?.addEventListener('submit', changeAdminPassword);
+  document.getElementById('createAdminForm')?.addEventListener('submit', createAdmin);
   document.getElementById('unlinkTelegramBtn')?.addEventListener('click', unlinkCurrentUserTelegram);
 
   document.getElementById('userSearch')?.addEventListener('input', debounce(() => {

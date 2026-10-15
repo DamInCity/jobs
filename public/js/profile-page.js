@@ -82,7 +82,6 @@ function applyProfile(profile) {
 
   const cvStatus = document.getElementById('cvStatus');
   const cvRemoveBtn = document.getElementById('cvRemoveBtn');
-  const parseBtn = document.getElementById('parseResumeBtn');
   const reprofileBtn = document.getElementById('reprofileBtn');
 
   if (profile.has_cv) {
@@ -92,12 +91,10 @@ function applyProfile(profile) {
       }`;
     }
     cvRemoveBtn?.classList.remove('hidden');
-    parseBtn?.classList.remove('hidden');
     reprofileBtn?.classList.remove('hidden');
   } else {
     if (cvStatus) cvStatus.textContent = 'No CV uploaded yet.';
     cvRemoveBtn?.classList.add('hidden');
-    parseBtn?.classList.add('hidden');
     reprofileBtn?.classList.add('hidden');
   }
 
@@ -168,10 +165,12 @@ async function uploadCv(file) {
   const formData = new FormData();
   formData.append('cv', file);
   const pickBtn = document.getElementById('cvPickBtn');
+  const banner = document.getElementById('cvParseBanner');
   if (pickBtn) {
     pickBtn.disabled = true;
-    pickBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Profiling…';
+    pickBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Parsing for AI…';
   }
+  banner?.classList.add('is-on');
   try {
     const response = await fetch('/api/users/cv', {
       method: 'POST',
@@ -188,6 +187,7 @@ async function uploadCv(file) {
   } catch (error) {
     showNotification(error.message || 'Upload failed', 'error');
   } finally {
+    banner?.classList.remove('is-on');
     if (pickBtn) {
       pickBtn.disabled = false;
       pickBtn.innerHTML = '<i class="fas fa-upload"></i> Upload CV';
@@ -240,39 +240,16 @@ async function reprofileCv() {
   }
 }
 
-async function parseMasterResume() {
-  const btn = document.getElementById('parseResumeBtn');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Parsing…';
-  }
-  try {
-    const res = await api('/users/resume/parse', { method: 'POST', body: JSON.stringify({}) });
-    showNotification(
-      res.message ||
-        `Parsed: ${res.data?.work_count || 0} roles, ${res.data?.skills_count || 0} skills`,
-      'success'
-    );
-  } catch (error) {
-    showNotification(error.message || 'Parse failed', 'error');
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-brain"></i> Parse for AI';
-    }
-  }
-}
-
 function setLlmPill(configured) {
   const el = document.getElementById('llmStatus');
   if (!el) return;
   if (configured) {
     el.className = 'llm-pill ok';
-    el.innerHTML = '<i class="fas fa-check-circle"></i> Resume AI ready (SiliconFlow)';
+    el.innerHTML = '<i class="fas fa-check-circle"></i> Resume AI ready (OpenRouter)';
   } else {
     el.className = 'llm-pill off';
     el.innerHTML =
-      '<i class="fas fa-exclamation-triangle"></i> Resume AI not configured — set SILICONFLOW_API_KEY';
+      '<i class="fas fa-exclamation-triangle"></i> Resume AI not configured — set OPENROUTER_API_KEY';
   }
 }
 
@@ -403,7 +380,12 @@ async function loadTailoredHistory() {
           <strong>${escapeHtml(r.job_title || 'Role')}</strong><br>
           <span class="text-muted">${escapeHtml(r.company_name || '')}</span>
         </td>
-        <td class="changes-cell">${escapeHtml(r.changes_summary || '')}</td>
+        <td class="changes-cell">
+          <div class="changes-clip">
+            <p class="changes-text">${escapeHtml(r.changes_summary || '')}</p>
+          </div>
+          <button type="button" class="changes-more" aria-expanded="false">Read more</button>
+        </td>
         <td style="white-space:nowrap">
           <button type="button" class="btn btn-primary btn-sm dl-tailored" data-id="${escapeHtml(r.id)}" data-name="${escapeHtml(r.original_name || 'tailored-cv.pdf')}" aria-label="Download">
             <i class="fas fa-download"></i>
@@ -415,6 +397,20 @@ async function loadTailoredHistory() {
       </tr>`
       )
       .join('');
+
+    body.querySelectorAll('.changes-cell').forEach((cell) => {
+      const clip = cell.querySelector('.changes-clip');
+      const btn = cell.querySelector('.changes-more');
+      if (!clip || !btn) return;
+      const overflow = clip.scrollHeight > clip.clientHeight + 4;
+      if (!overflow) return;
+      btn.classList.add('is-visible');
+      btn.addEventListener('click', () => {
+        const open = clip.classList.toggle('is-open');
+        btn.textContent = open ? 'Show less' : 'Read more';
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    });
 
     body.querySelectorAll('.dl-tailored').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -479,6 +475,13 @@ async function initProfilePage() {
   }
 
   await Promise.all([loadResumeStatus(), loadCandidates(), loadTailoredHistory()]);
+
+  document.getElementById('openWizardBtn')?.addEventListener('click', () => {
+    if (typeof openSetupWizard === 'function') openSetupWizard();
+  });
+  if (typeof startSetupWizard === 'function') {
+    startSetupWizard({ profile: state.user });
+  }
 
   document.getElementById('accountForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -552,7 +555,6 @@ async function initProfilePage() {
     e.target.value = '';
   });
   document.getElementById('cvRemoveBtn')?.addEventListener('click', removeCv);
-  document.getElementById('parseResumeBtn')?.addEventListener('click', parseMasterResume);
   document.getElementById('confirmProfileBtn')?.addEventListener('click', confirmProfile);
   document.getElementById('reprofileBtn')?.addEventListener('click', reprofileCv);
 

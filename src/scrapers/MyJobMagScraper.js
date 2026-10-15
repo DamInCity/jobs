@@ -4,7 +4,7 @@
  */
 
 const BaseScraper = require('./BaseScraper');
-const { extractApplyFromCheerio, sanitizeListingHtml, isEmployerHttpUrl } = require('./myjobmagHtml');
+const { extractApplyFromCheerio, sanitizeListingHtml, isEmployerHttpUrl, resolveApplyNowFirstHop } = require('./myjobmagHtml');
 
 class MyJobMagScraper extends BaseScraper {
   constructor() {
@@ -41,26 +41,7 @@ class MyJobMagScraper extends BaseScraper {
    * itself still redirects client-side, so it remains a usable apply link.
    */
   async resolveRedirect(url) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
-      const response = await fetch(url, {
-        redirect: 'follow',
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
-        },
-      });
-      clearTimeout(timer);
-      // Drain body so the socket is released
-      await response.arrayBuffer().catch(() => {});
-      const finalUrl = response.url || url;
-      if (/^https?:\/\//i.test(finalUrl)) return finalUrl;
-      return url;
-    } catch {
-      return url;
-    }
+    return resolveApplyNowFirstHop(url);
   }
 
   async close() {

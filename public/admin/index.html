@@ -8,14 +8,16 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <!-- Styles -->
-  <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="/css/main.css?v=poster-export-2">
+  <link rel="stylesheet" href="/css/admin.css?v=poster-export-2">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 </head>
 <body class="admin-body">
   <!-- Sidebar -->
@@ -44,6 +46,10 @@
       <a href="/admin/users" class="sidebar-link" data-page="users">
         <i class="fas fa-users"></i>
         <span>Users</span>
+      </a>
+      <a href="/admin/admin-access" class="sidebar-link" data-page="admin-access">
+        <i class="fas fa-user-shield"></i>
+        <span>Admin Access</span>
       </a>
     </nav>
     
@@ -354,8 +360,57 @@
         </div>
         <div class="table-pagination" id="usersPagination"></div>
       </div>
+
+      <div class="admin-access-view hidden" id="adminAccessView">
+        <section class="dashboard-card" style="margin-bottom: 1.5rem;">
+          <div class="card-header"><h2>Change your password</h2></div>
+          <form id="adminPasswordForm" class="modal-body">
+            <div class="form-grid form-grid-3">
+              <div class="form-group"><label class="form-label" for="currentAdminPassword">Current password</label><input class="form-input" id="currentAdminPassword" type="password" autocomplete="current-password" required></div>
+              <div class="form-group"><label class="form-label" for="newAdminPassword">New password</label><input class="form-input" id="newAdminPassword" type="password" minlength="8" autocomplete="new-password" required></div>
+              <div class="form-group"><label class="form-label" for="confirmAdminPassword">Confirm new password</label><input class="form-input" id="confirmAdminPassword" type="password" minlength="8" autocomplete="new-password" required></div>
+            </div>
+            <button class="btn btn-primary" type="submit">Update password</button>
+          </form>
+        </section>
+        <section class="dashboard-card" style="margin-bottom: 1.5rem;">
+          <div class="card-header"><h2>Create an administrator</h2></div>
+          <form id="createAdminForm" class="modal-body">
+            <div class="form-grid form-grid-3">
+              <div class="form-group"><label class="form-label" for="newAdminName">Name</label><input class="form-input" id="newAdminName" required minlength="2" autocomplete="name"></div>
+              <div class="form-group"><label class="form-label" for="newAdminEmail">Email</label><input class="form-input" id="newAdminEmail" type="email" required autocomplete="email"></div>
+              <div class="form-group"><label class="form-label" for="newAdminTempPassword">Temporary password</label><input class="form-input" id="newAdminTempPassword" type="password" minlength="8" required autocomplete="new-password"><small>Share it with the new admin privately; they can change it after signing in.</small></div>
+            </div>
+            <button class="btn btn-primary" type="submit"><i class="fas fa-user-plus"></i> Create admin</button>
+          </form>
+        </section>
+        <section class="dashboard-card">
+          <div class="card-header"><h2>Administrators</h2></div>
+          <div class="data-table-container"><table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Last login</th><th>Added</th></tr></thead><tbody id="adminsTableBody"><tr><td colspan="4">Loading…</td></tr></tbody></table></div>
+        </section>
+      </div>
     </div>
   </main>
+
+  <div class="modal" id="posterExportModal" aria-hidden="true">
+    <div class="modal-overlay" onclick="closePosterExport()"></div>
+    <div class="modal-content" style="max-width: 560px;">
+      <div class="modal-header">
+        <h2>Export job image</h2>
+        <button class="modal-close" type="button" onclick="closePosterExport()" aria-label="Close"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="muted-line">Mobile-width preview of the job-detail header. Download this PNG, then add your graphic design manually.</p>
+        <div id="posterPreviewFrame" style="overflow:auto;max-height:60vh;padding:1rem;background:#f1f3f5;border-radius:12px;">
+          <div id="posterCapture" class="poster-capture"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1rem;">
+          <button class="btn btn-ghost" type="button" onclick="closePosterExport()">Close</button>
+          <button class="btn btn-primary" type="button" id="downloadPosterBtn" onclick="downloadPosterImage()"><i class="fas fa-download"></i> Download PNG</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Job Form Modal -->
   <div class="modal" id="jobModal">
@@ -399,9 +454,9 @@
           <div class="form-group">
             <label class="form-label">Job Type *</label>
             <select class="form-select" id="jobType" required>
-              <option value="remote">Remote</option>
+              <option value="onsite" selected>On-site</option>
               <option value="hybrid">Hybrid</option>
-              <option value="onsite">On-site</option>
+              <option value="remote">Remote</option>
             </select>
           </div>
           <div class="form-group">
@@ -788,6 +843,6 @@
   </div>
 
   <!-- Scripts -->
-  <script src="/js/admin.js"></script>
+  <script src="/js/admin.js?v=poster-export-2"></script>
 </body>
 </html>

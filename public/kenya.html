@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Find jobs in Kenya. Browse thousands of verified opportunities across Nairobi, Mombasa, Kisumu and all 47 counties — updated daily.">
+  <meta name="keywords" content="jobs in kenya, kenyan jobs, nairobi jobs, mombasa jobs, careers kenya, employment kenya, government jobs kenya, ngo jobs kenya">
+  <meta name="theme-color" content="#FF4F5E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="JobsHub Kenya">
+  <meta name="mobile-web-app-capable" content="yes">
+  <!-- Open Graph / Social -->
+  <meta property="og:title" content="JobsHub Kenya — Find jobs in Kenya">
+  <meta property="og:description" content="Browse thousands of verified jobs across Nairobi, Mombasa, Kisumu and all 47 counties — updated daily.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://jobshub.co.ke/kenya">
+  <meta property="og:site_name" content="JobsHub">
+  <meta property="og:locale" content="en_KE">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="JobsHub Kenya — Find jobs in Kenya">
+  <meta name="twitter:description" content="Browse thousands of verified jobs across Nairobi, Mombasa, Kisumu and all 47 counties.">
+  <link rel="canonical" href="https://jobshub.co.ke/kenya">
+  <title>Jobs in Kenya — Find Verified Kenyan Jobs | JobsHub</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css?v=12">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+  <link rel="mask-icon" href="/icons/icon-maskable-512.png" color="#ff4f5e">
+</head>
+<body class="has-bottom-nav">
+  <header class="header" id="siteHeader">
+    <div class="container">
+      <nav class="nav" aria-label="Primary">
+        <a href="/" class="logo">
+          <img src="/icons/icon-192.png" alt="" class="logo-mark" aria-hidden="true" width="32" height="32">
+          <span class="logo-text">Jobs<span>Hub</span></span>
+        </a>
+        <div class="nav-links">
+          <a href="/" class="nav-link" data-nav="jobs">Jobs</a>
+          <a href="/categories" class="nav-link" data-nav="categories">Explore</a>
+          <a href="/alerts" class="nav-link" data-nav="alerts">Alerts</a>
+          <a href="/about" class="nav-link" data-nav="about">About</a>
+        </div>
+        <div class="nav-actions">
+          <div class="auth-buttons" id="authButtons">
+            <a href="/login" class="btn btn-ghost">Sign in</a>
+            <a href="/register" class="btn btn-primary">Get started</a>
+          </div>
+          <div class="user-menu hidden" id="userMenu">
+            <button class="user-menu-btn" id="userMenuBtn" type="button" aria-expanded="false" aria-haspopup="true">
+              <span class="user-avatar" id="userAvatar">U</span>
+              <span id="userName">User</span>
+              <i class="fas fa-chevron-down" style="font-size:0.65rem;opacity:0.5"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown" role="menu">
+              <a href="/alerts" role="menuitem"><i class="fas fa-bell"></i> Your alerts</a>
+              <a href="/alerts" role="menuitem"><i class="fas fa-bookmark"></i> Your shortlist</a>
+              <a href="/profile" role="menuitem"><i class="fas fa-user"></i> Profile</a>
+              <hr>
+              <a href="#" id="logoutBtn" role="menuitem"><i class="fas fa-sign-out-alt"></i> Sign out</a>
+            </div>
+          </div>
+          <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="/" class="mobile-nav-link">Jobs</a>
+    <a href="/categories" class="mobile-nav-link">Explore</a>
+    <a href="/alerts" class="mobile-nav-link">Alerts</a>
+    <a href="/about" class="mobile-nav-link">About</a>
+    <hr style="border:none;border-top:1px solid var(--border);margin:0.5rem 0">
+    <div class="mobile-auth" id="mobileAuth">
+      <a href="/login" class="btn btn-ghost btn-block">Sign in</a>
+      <a href="/register" class="btn btn-primary btn-block">Get started</a>
+    </div>
+  </div>
+
+  <main id="app">
+    <!-- Kenya Hero -->
+    <section class="section kenya-hub" style="padding-top:2rem">
+      <div class="container">
+        <div class="kenya-hub-card" style="text-align:center;padding:2.5rem 2rem">
+          <div class="kenya-hub-copy">
+            <span class="section-eyebrow">Jobs in Kenya</span>
+            <h1 class="section-title" style="font-size:2rem;margin-bottom:0.5rem" id="kenyaPageTitle">Jobs in Kenya</h1>
+            <p class="section-subtitle" style="margin-bottom:1rem" id="kenyaPageDescription">
+              Browse verified opportunities from company career pages, public sector, NGOs, and Kenyan boards
+            </p>
+            <div class="kenya-presets" role="group" aria-label="Kenya shortcuts">
+              <button type="button" class="btn btn-primary btn-sm" onclick="applyKenyaPreset('all')">All Kenya</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="applyKenyaPreset('nairobi')">Nairobi</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="applyKenyaPreset('government')">Government</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="applyKenyaPreset('ngo')">NGO</button>
+            </div>
+          </div>
+          <div class="kenya-county-wrap" style="margin-top:1rem">
+            <p class="filter-label" style="margin-bottom:0.4rem">Browse by county</p>
+            <div class="kenya-county-chips" id="kenyaCountyChips"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Job Listings -->
+    <section class="section section-gray" id="exploreSection">
+      <div class="container">
+        <div class="jobs-layout" id="jobs-layout">
+          <div class="jobs-main" style="max-width:100%">
+            <div class="jobs-header">
+              <div class="jobs-count">
+                <span id="jobsCount">0</span> opportunities in Kenya
+              </div>
+              <div class="jobs-header-actions">
+                <div class="jobs-sort">
+                  <label for="sortSelect" class="sr-only">Sort by</label>
+                  <select id="sortSelect" class="sort-select">
+                    <option value="posted_date">Most recent</option>
+                    <option value="salary">Highest salary</option>
+                    <option value="views">Most viewed</option>
+                    <option value="title">Title A–Z</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="jobs-list" id="jobsList" aria-live="polite"></div>
+            <div class="pagination" id="pagination"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Job Detail Modal -->
+  <div class="modal" id="jobModal" role="dialog" aria-modal="true" aria-labelledby="jobDetailTitle">
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-content">
+      <button class="modal-close" id="modalClose" type="button" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+      <div id="jobDetail"></div>
+    </div>
+  </div>
+
+  <footer class="footer" data-site-footer></footer>
+
+  <nav class="bottom-nav" aria-label="Mobile">
+    <div class="bottom-nav-inner">
+      <a href="/" class="bottom-nav-item">
+        <i class="fas fa-briefcase"></i>
+        Jobs
+      </a>
+      <a href="/categories" class="bottom-nav-item">
+        <i class="fas fa-compass"></i>
+        Explore
+      </a>
+      <a href="/alerts" class="bottom-nav-item">
+        <i class="fas fa-bell"></i>
+        Alerts
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/main.js?v=10"></script>
+  <script>
+    // Auto-apply Kenya filter on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Extract county from URL path if available
+      const path = window.location.pathname;
+      const countyMatch = path.match(/^\/kenya\/([^/]+)/);
+      const county = countyMatch ? decodeURIComponent(countyMatch[1]) : null;
+
+      if (county) {
+        state.filters.kenya_only = true;
+        state.filters.county = county;
+        const title = county.charAt(0).toUpperCase() + county.slice(1);
+        document.getElementById('kenyaPageTitle').textContent = `Jobs in ${title}, Kenya`;
+        document.getElementById('kenyaPageDescription').textContent =
+          `Browse verified job opportunities in ${title}, Kenya — updated daily.`;
+        document.title = `Jobs in ${title}, Kenya — Find Kenyan Jobs | JobsHub`;
+      } else {
+        state.filters.kenya_only = true;
+      }
+      loadFacets();
+      loadJobs();
+    });
+  </script>
+</body>
+</html>
